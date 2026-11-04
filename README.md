@@ -1,44 +1,40 @@
-# Yablonsky Multilingual
+# Yablonsky Multilingual — WordPress Multilingual Translation Plugin
 
-**Write and manage your website in multiple languages — with native WordPress content and optional AI assistance.**
+**Translate and manage a multilingual WordPress website, WooCommerce store, and content workflows in one place.**
 
-Yablonsky Multilingual (YMulti) is a self-hosted multilingual plugin that connects translated posts, pages, products and other content while keeping editors and publication decisions under human control.
+[**Yablonsky Multilingual**](https://yablonsky.io/multilingual/) is a multilingual WordPress plugin for creating language-connected content, managing translations, and building international websites with native WordPress editing. It combines language routing, multilingual WooCommerce support, human-reviewed translation workflows, and optional AI assistance.
 
-## Features
+## Multilingual WordPress Translation and Language Management
 
-- **Languages and routing:** configure active languages, language-aware URLs, switchers and hreflang relationships.
-- **Content workspaces:** connect native WordPress pages, posts, taxonomies and supported public content types into translation families.
-- **WooCommerce:** multilingual products, product taxonomies, metadata and commerce email workflows.
-- **Review and jobs:** translation drafts, XLIFF interchange, visual review and bounded bulk operations.
-- **Autopilot:** optional administrator-configured workflow for queuing draft/review tasks with explicit scope and request limits.
-- **Optional AI:** connect a user-owned Yablonsky AI account for reviewed translation suggestions. AI is not required for local translation management.
+Manage multiple languages without moving your content out of WordPress:
 
-## Requirements
+- Connect translated pages, posts, products, taxonomies, menus, and supported custom fields.
+- Configure language-aware URLs, language switchers, and hreflang relationships.
+- Organize translation families, track coverage, and find untranslated content.
+- Review translations using native editing, translation jobs, visual review, and XLIFF interchange.
 
-- WordPress 6.0 or later; PHP 7.4 or later (declared minimums).
-- Plugin metadata currently declares `Tested up to: 7.1`; live acceptance shared by the project covers the earlier WordPress 6.4.2 installation. A full WordPress 7.1/PHP 7.4 runtime matrix has not been independently completed.
-- Runs independently of WPML/Polylang. Coexistence and migration tools are available for sites with existing multilingual data.
+The plugin keeps editors in control of published content and language-specific changes.
 
-## Installation
+## WooCommerce Multilingual Translation
 
-Download the versioned ZIP from GitHub Releases, upload in **WordPress → Plugins → Add Plugin → Upload Plugin**, activate and open **Yablonsky Multilingual**. Select the site's languages and configure content workflows. Back up your site before upgrading any multilingual plugin.
+Yablonsky Multilingual supports multilingual e-commerce workflows, including translated product content, product taxonomies, global attributes, and commerce emails. Language coverage and connected content can be managed from a single administration workspace.
 
-## Privacy and optional AI
+## AI Translation and Human Review
 
-The multilingual core works locally. Optional AI actions submit the content selected for that operation to the administrator-connected service.
+Optional AI-assisted translation is available through [**Yablonsky AI**](https://ai.yablonsky.io/). Administrators can connect their own AI service, prepare translation suggestions, and review the results before publication. The core multilingual features remain available without an AI connection.
 
-- [Yablonsky AI](https://ai.yablonsky.io/)
-- [Service terms](https://ai.yablonsky.io/policies/terms)
-- [Privacy policy](https://ai.yablonsky.io/policies/privacy)
+## Autopilot — Automated Translation Workflows
 
-## Security
+Autopilot helps turn missing translations and source-content changes into bounded review tasks. Administrators choose target languages, supported content types, processing behavior, and AI request limits. Publication remains subject to human approval.
 
-See [SECURITY.md](SECURITY.md) for responsible disclosure. Local static/isolated tests and live WordPress Plugin Check have been performed; no claim of an exhaustive penetration test or benchmark against competitors is made.
+## WordPress Plugin Installation
 
-## License
+Download the versioned installable ZIP from this repository's Releases section. In WordPress, open **Plugins → Add Plugin → Upload Plugin**, install the ZIP, and activate **Yablonsky Multilingual**. Configure the site's active languages before enabling content workflows.
 
-GPLv2 or later. See [LICENSE](LICENSE).
+Declared minimums: WordPress 6.0 and PHP 7.4. Compatibility should be verified for each production environment. The project uses GPLv2 or later.
 
-## Origin
+## Explore Yablonsky Multilingual
 
-Developed by [Yablonsky.io](https://yablonsky.io/). YMulti is part of the Yablonsky open WordPress plugin ecosystem.
+Discover product capabilities, multilingual translation workflows, WooCommerce integration, and future updates on the [**Yablonsky Multilingual product page**](https://yablonsky.io/multilingual/).
+
+Yablonsky Multilingual is developed by [**Yablonsky.io**](https://yablonsky.io/), the founding product home for the Yablonsky WordPress ecosystem.
