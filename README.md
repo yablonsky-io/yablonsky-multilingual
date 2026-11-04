@@ -35,6 +35,6 @@ Declared minimums: WordPress 6.0 and PHP 7.4. Compatibility should be verified f
 
 ## Explore Yablonsky Multilingual
 
-Discover product capabilities, multilingual translation workflows, WooCommerce integration, and future updates on the [**Yablonsky Multilingual product page**](https://yablonsky.io/multilingual/).
+Discover product capabilities, multilingual translation workflows, WooCommerce integration, and future updates on the [**Yablonsky Multilingual plugin for WordPress**](https://yablonsky.io/multilingual/).
 
 Yablonsky Multilingual is developed by [**Yablonsky.io**](https://yablonsky.io/), the founding product home for the Yablonsky WordPress ecosystem.
