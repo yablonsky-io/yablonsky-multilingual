@@ -33,6 +33,14 @@ Download the versioned installable ZIP from this repository's Releases section. 
 
 Declared minimums: WordPress 6.0 and PHP 7.4. Compatibility should be verified for each production environment. The project uses GPLv2 or later.
 
+## Related Yablonsky WordPress Plugins
+
+Yablonsky Multilingual handles language identity, translated content, and review workflows. These independent Yablonsky products cover complementary responsibilities; none is required to run YMulti:
+
+- **[Yablonsky SEO — GEO & AEO WordPress SEO plugin](https://yablonsky.io/seo/)** — technical SEO, structured data, search discovery, and language-aware search signals.
+- **[Yablonsky Security — WordPress security plugin](https://github.com/yablonsky-io/yablonsky-security)** — firewall, bot verification, abuse protection, and website security controls.
+- **[Yablonsky AI Chatbots for WordPress](https://yablonsky.io/ai-chatbots/)** — customer-facing AI chatbots, multilingual conversations, and business workflows.
+
 ## Explore Yablonsky Multilingual
 
 Discover product capabilities, multilingual translation workflows, WooCommerce integration, and future updates on the [**Yablonsky Multilingual plugin for WordPress**](https://yablonsky.io/multilingual/).
