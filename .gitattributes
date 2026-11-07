@@ -1,0 +1,6 @@
+*.mo binary
+*.po text
+*.pot text
+*.php text
+*.css text
+*.js text
