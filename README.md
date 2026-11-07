@@ -29,7 +29,7 @@ Autopilot helps turn missing translations and source-content changes into bounde
 
 ## WordPress Plugin Installation
 
-Download the versioned installable ZIP from this repository's Releases section. In WordPress, open **Plugins → Add Plugin → Upload Plugin**, install the ZIP, and activate **Yablonsky Multilingual**. Configure the site's active languages before enabling content workflows.
+Use the versioned installable ZIP attached to a published GitHub Release (not GitHub's automatic source-code archive). In WordPress, open **Plugins → Add Plugin → Upload Plugin**, install the ZIP, and activate **Yablonsky Multilingual**. Configure the site's active languages before enabling content workflows.
 
 Declared minimums: WordPress 6.0 and PHP 7.4. Compatibility should be verified for each production environment. The project uses GPLv2 or later.
 
