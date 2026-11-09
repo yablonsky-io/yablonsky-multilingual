@@ -1,0 +1,118 @@
+name: Import accepted YMulti installer into source tree
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ymulti-initial-source-import
+  cancel-in-progress: false
+
+jobs:
+  import-approved-2537:
+    name: Verify and import YMulti 2.53.7
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Download accepted ZIP from draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/ymulti-upload"
+          gh release download v2.53.7 \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern 'yablonsky-multilingual-2.53.7.zip' \
+            --dir "${RUNNER_TEMP}/ymulti-upload"
+          test -s "${RUNNER_TEMP}/ymulti-upload/yablonsky-multilingual-2.53.7.zip"
+
+      - name: Verify exact approved archive and import source files
+        env:
+          INSTALLER: ${{ runner.temp }}/ymulti-upload/yablonsky-multilingual-2.53.7.zip
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+          import hashlib, os, stat, sys
+
+          expected_sha256 = "64fd0aed43e26542b061d5c58e7f2859cc2fa8ac06eab1dd12594437052aecba"
+          installer = Path(os.environ["INSTALLER"])
+          data = installer.read_bytes()
+          actual = hashlib.sha256(data).hexdigest()
+          if actual != expected_sha256:
+              sys.exit(f"FAIL: archive SHA-256 {actual}, expected {expected_sha256}")
+
+          exclude_docs = {
+              "YMULTI_2_51_0_PERFORMANCE_GATE.md",
+              "YMULTI_ASSET_IDENTITY_AND_DRAWER_CORRECTIVE_v1.0.0_2026-10-08.md",
+              "YMULTI_DRAFTS_UI_CORRECTIVE_v1.0.0_2026-10-09.md",
+              "YMULTI_FAMILY_DRAWER_AND_SOURCE_CELL_CORRECTIVE_v1.0.0_2026-10-08.md",
+              "YMULTI_NATIVE_LIST_MEDIA_AND_FILTER_CORRECTIVE_v1.0.0_2026-10-08.md",
+              "YMULTI_PRODUCT_INVARIANT_AUDIT_v1.0.0_2026-10-05.md",
+              "YMULTI_UI_INTERACTION_CONTRACT_v1.1.0_2026-10-08.md",
+          }
+          preserved = {"README.md", "SECURITY.md", "LICENSE", ".gitignore", ".gitattributes"}
+          written, skipped, contents = 0, 0, []
+
+          with ZipFile(installer) as archive:
+              all_files = [m for m in archive.infolist() if not m.is_dir()]
+              if len(all_files) != 187:
+                  sys.exit(f"FAIL: expected 187 files, got {len(all_files)}")
+              for member in all_files:
+                  name = member.filename
+                  root = "yablonsky-multilingual/"
+                  if not name.startswith(root):
+                      sys.exit(f"FAIL: unexpected archive entry {name!r}")
+                  rel = name[len(root):]
+                  p = PurePosixPath(rel)
+                  if not rel or p.is_absolute() or ".." in p.parts or "\\" in rel:
+                      sys.exit(f"FAIL: invalid path {rel!r}")
+                  if stat.S_ISLNK(member.external_attr >> 16):
+                      sys.exit(f"FAIL: symlink not allowed {rel!r}")
+                  if rel in preserved or (p.parts[0] == "docs" and p.name in exclude_docs):
+                      skipped += 1
+                      continue
+                  target = Path(rel)
+                  if target.exists() and target.is_symlink():
+                      sys.exit(f"FAIL: target symlink {rel!r}")
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(archive.read(member))
+                  written += 1
+                  contents.append(rel)
+
+          if written != 180 or skipped != 7:
+              sys.exit(f"FAIL: imported={written}, skipped={skipped}, expected 180/7")
+          if len([p for p in contents if p.endswith(".php")]) != 74:
+              sys.exit("FAIL: expected 74 PHP files")
+          if len([p for p in contents if p.endswith(".po")]) != 36:
+              sys.exit("FAIL: expected 36 PO files")
+          if len([p for p in contents if p.endswith(".mo")]) != 36:
+              sys.exit("FAIL: expected 36 MO files")
+          main = Path("yablonsky-multilingual.php").read_text(encoding="utf-8")
+          readme = Path("readme.txt").read_text(encoding="utf-8")
+          if "Version: 2.53.7" not in main or "Stable tag: 2.53.7" not in readme:
+              sys.exit("FAIL: plugin version mismatch")
+          print(f"PASS: SHA-256 matched; {written} accepted source files imported")
+          print("PASS: 74 PHP, 36 PO, 36 MO, version 2.53.7")
+          print("PASS: seven internal historical notes excluded; existing public README preserved")
+          PY
+
+      - name: Commit reviewed source tree to main
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No source changes: import already complete.'
+          else
+            git commit -m 'release: import accepted Yablonsky Multilingual 2.53.7 source'
+            git push origin HEAD:main
+          fi
