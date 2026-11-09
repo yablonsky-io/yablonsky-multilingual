@@ -1,127 +1,108 @@
-name: Import accepted YMulti installer into source tree
-
+name: Publish verified Yablonsky Multilingual 2.53.7 source
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/source-payload/**'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: ymulti-initial-source-import
+  group: ymulti2537-source-publication
   cancel-in-progress: false
 
 jobs:
-  import-approved-2537:
-    name: Verify and import YMulti 2.53.7
+  import-source:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out main
+      - name: Check out public repository
         uses: actions/checkout@v4
         with:
           ref: main
           persist-credentials: true
 
-      - name: Download accepted ZIP from draft GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify source payload and extract 180 original files
         run: |
           set -euo pipefail
-          mkdir -p "${RUNNER_TEMP}/ymulti-upload"
-          gh release download v2.53.7 \
-            --repo "${GITHUB_REPOSITORY}" \
-            --pattern 'yablonsky-multilingual-2.53.7.zip' \
-            --dir "${RUNNER_TEMP}/ymulti-upload"
-          test -s "${RUNNER_TEMP}/ymulti-upload/yablonsky-multilingual-2.53.7.zip"
-
-      - name: Verify exact approved archive and import source files
-        env:
-          INSTALLER: ${{ runner.temp }}/ymulti-upload/yablonsky-multilingual-2.53.7.zip
-        run: |
           python3 - <<'PY'
+          import hashlib
           from pathlib import Path, PurePosixPath
-          from zipfile import ZipFile
-          import hashlib, os, stat, sys
+          import tarfile, io, struct, sys
 
-          expected_sha256 = "64fd0aed43e26542b061d5c58e7f2859cc2fa8ac06eab1dd12594437052aecba"
-          installer = Path(os.environ["INSTALLER"])
-          data = installer.read_bytes()
-          actual = hashlib.sha256(data).hexdigest()
-          if actual != expected_sha256:
-              sys.exit(f"FAIL: archive SHA-256 {actual}, expected {expected_sha256}")
+          payload_dir = Path('.github/source-payload')
+          parts = sorted(payload_dir.glob('part_*.bin'))
+          expected_names = [f'part_{i:03d}.bin' for i in range(16)]
+          if [p.name for p in parts] != expected_names:
+              sys.exit('FAIL: expected all 16 source payload parts in order')
 
-          exclude_docs = {
-              "YMULTI_2_51_0_PERFORMANCE_GATE.md",
-              "YMULTI_ASSET_IDENTITY_AND_DRAWER_CORRECTIVE_v1.0.0_2026-10-08.md",
-              "YMULTI_DRAFTS_UI_CORRECTIVE_v1.0.0_2026-10-09.md",
-              "YMULTI_FAMILY_DRAWER_AND_SOURCE_CELL_CORRECTIVE_v1.0.0_2026-10-08.md",
-              "YMULTI_NATIVE_LIST_MEDIA_AND_FILTER_CORRECTIVE_v1.0.0_2026-10-08.md",
-              "YMULTI_PRODUCT_INVARIANT_AUDIT_v1.0.0_2026-10-05.md",
-              "YMULTI_UI_INTERACTION_CONTRACT_v1.1.0_2026-10-08.md",
-          }
-          preserved = {"README.md", "SECURITY.md", "LICENSE", ".gitignore", ".gitattributes"}
-          written, skipped, contents = 0, 0, []
+          packed = b''.join(p.read_bytes() for p in parts)
+          expected_sha = '9866c37c07c579f0dbf9c3bb54b1870e85ef85adca7437c77c23a71fe4cd7ed6'
+          actual_sha = hashlib.sha256(packed).hexdigest()
+          if actual_sha != expected_sha or len(packed) != 2048112:
+              sys.exit('FAIL: source package checksum or size mismatch')
 
-          with ZipFile(installer) as archive:
-              all_files = [m for m in archive.infolist() if not m.is_dir()]
-              if len(all_files) != 187:
-                  sys.exit(f"FAIL: expected 187 files, got {len(all_files)}")
-              for member in all_files:
-                  name = member.filename
-                  root = "yablonsky-multilingual/"
-                  if not name.startswith(root):
-                      sys.exit(f"FAIL: unexpected archive entry {name!r}")
-                  rel = name[len(root):]
-                  p = PurePosixPath(rel)
-                  if not rel or p.is_absolute() or ".." in p.parts or "\\" in rel:
-                      sys.exit(f"FAIL: invalid path {rel!r}")
-                  if stat.S_ISLNK(member.external_attr >> 16):
-                      sys.exit(f"FAIL: symlink not allowed {rel!r}")
-                  if rel in preserved or (p.parts[0] == "docs" and p.name in exclude_docs):
-                      skipped += 1
-                      continue
-                  target = Path(rel)
-                  if target.exists() and target.is_symlink():
-                      sys.exit(f"FAIL: target symlink {rel!r}")
-                  target.parent.mkdir(parents=True, exist_ok=True)
-                  target.write_bytes(archive.read(member))
-                  written += 1
-                  contents.append(rel)
+          files = {}
+          with tarfile.open(fileobj=io.BytesIO(packed), mode='r:xz') as tar:
+              for member in tar.getmembers():
+                  if not member.isfile() or member.issym() or member.islnk():
+                      sys.exit('FAIL: unsafe tar entry')
+                  path = PurePosixPath(member.name)
+                  if path.is_absolute() or '..' in path.parts or not path.parts or path.parts[0] in ('.github',):
+                      sys.exit('FAIL: disallowed path: ' + member.name)
+                  if path.name.startswith('YMULTI_') and path.parts[0] == 'docs':
+                      sys.exit('FAIL: private engineering note in public source')
+                  if member.name in files:
+                      sys.exit('FAIL: duplicate archive member')
+                  files[member.name] = tar.extractfile(member).read()
 
-          if written != 180 or skipped != 7:
-              sys.exit(f"FAIL: imported={written}, skipped={skipped}, expected 180/7")
-          if len([p for p in contents if p.endswith(".php")]) != 74:
-              sys.exit("FAIL: expected 74 PHP files")
-          if len([p for p in contents if p.endswith(".po")]) != 36:
-              sys.exit("FAIL: expected 36 PO files")
-          if len([p for p in contents if p.endswith(".mo")]) != 36:
-              sys.exit("FAIL: expected 36 MO files")
-          main = Path("yablonsky-multilingual.php").read_text(encoding="utf-8")
-          readme = Path("readme.txt").read_text(encoding="utf-8")
-          if "Version: 2.53.7" not in main or "Stable tag: 2.53.7" not in readme:
-              sys.exit("FAIL: plugin version mismatch")
-          print(f"PASS: SHA-256 matched; {written} accepted source files imported")
-          print("PASS: 74 PHP, 36 PO, 36 MO, version 2.53.7")
-          print("PASS: seven internal historical notes excluded; existing public README preserved")
+          if len(files) != 180:
+              sys.exit(f'FAIL: expected 180 public files, got {len(files)}')
+          for ext, n in (('.php', 74), ('.js', 19), ('.css', 10), ('.po', 36), ('.mo', 36)):
+              count = sum(path.endswith(ext) for path in files)
+              if count != n:
+                  sys.exit(f'FAIL: expected {n} {ext} files, got {count}')
+          main = files['yablonsky-multilingual.php'].decode('utf-8')
+          readme = files['readme.txt'].decode('utf-8')
+          if 'Version: 2.53.7' not in main or 'Stable tag: 2.53.7' not in readme:
+              sys.exit('FAIL: YMulti version mismatch')
+          for path, data in files.items():
+              if path.endswith('.mo'):
+                  if len(data) < 32 or data[:4] != b'\xde\x12\x04\x95':
+                      sys.exit(f'FAIL: malformed MO header: {path}')
+                  if struct.unpack_from('<I', data, 24)[0] == 0:
+                      sys.exit(f'FAIL: WordPress-incompatible MO index: {path}')
+
+          for path, data in files.items():
+              target = Path(path)
+              if target.exists() and target.is_symlink():
+                  sys.exit('FAIL: pre-existing symbolic link: ' + path)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(data)
+
+          print(f'PASS: 180 source files verified; source pack SHA-256 {actual_sha}')
+          print('PASS: 74 PHP, 19 JS, 10 CSS, 36 PO, 36 MO; metadata and native MO headers')
+          print('PASS: internal engineering documents excluded; public README and LICENSE preserved')
           PY
 
-      - name: Commit reviewed source tree to main
+      - name: Verify PHP and JavaScript syntax
+        run: |
+          set -euo pipefail
+          find . -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+          find . -name '*.js' -print0 | xargs -0 -n1 node --check > /dev/null
+          echo 'PASS: PHP and JavaScript syntax'
+
+      - name: Commit verified public source without transfer parts
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r -f .github/source-payload
           git add -A
           if git diff --cached --quiet; then
-            echo 'No source changes: import already complete.'
+            echo 'Nothing changed'
           else
-            git commit -m 'release: import accepted Yablonsky Multilingual 2.53.7 source'
+            git commit -m 'release: publish verified YMulti 2.53.7 source and 36 locales'
             git push origin HEAD:main
           fi
-
-      - name: Fill draft release notes after successful import
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh release edit v2.53.7 \
-            --repo "${GITHUB_REPOSITORY}" \
-            --notes-file ".github/RELEASE_NOTES_2.53.7.md"
