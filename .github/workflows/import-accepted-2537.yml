@@ -116,3 +116,12 @@ jobs:
             git commit -m 'release: import accepted Yablonsky Multilingual 2.53.7 source'
             git push origin HEAD:main
           fi
+
+      - name: Fill draft release notes after successful import
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release edit v2.53.7 \
+            --repo "${GITHUB_REPOSITORY}" \
+            --notes-file ".github/RELEASE_NOTES_2.53.7.md"
