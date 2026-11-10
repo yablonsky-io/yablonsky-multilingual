@@ -1,0 +1,128 @@
+name: Release Yablonsky Multilingual 2.53.7
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-release-2537.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-ymulti-2537
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out accepted public source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Verify all accepted source hashes and build clean public installer
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
+          import hashlib, json, re, sys
+
+          manifest = json.loads(Path('.github/RELEASE_SOURCE_SHA256_2.53.7.json').read_text(encoding='utf-8'))
+          expected = manifest['files']
+          if manifest['version'] != '2.53.7' or manifest['file_count'] != 180 or len(expected) != 180:
+              sys.exit('FAIL: unexpected release manifest')
+          if manifest['accepted_installer_sha256'] != '64fd0aed43e26542b061d5c58e7f2859cc2fa8ac06eab1dd12594437052aecba':
+              sys.exit('FAIL: accepted baseline mismatch')
+
+          for name, sha in expected.items():
+              if name.startswith('/') or '\\' in name or '..' in Path(name).parts:
+                  sys.exit('FAIL: unsafe manifest path')
+              file = Path(name)
+              if not file.is_file() or hashlib.sha256(file.read_bytes()).hexdigest() != sha:
+                  sys.exit(f'FAIL: source differs from accepted version: {name}')
+
+          if sum(p.endswith('.php') for p in expected) != 74:
+              sys.exit('FAIL: PHP count')
+          if sum(p.endswith('.js') for p in expected) != 19:
+              sys.exit('FAIL: JavaScript count')
+          if sum(p.endswith('.po') for p in expected) != 36 or sum(p.endswith('.mo') for p in expected) != 36:
+              sys.exit('FAIL: language pack count')
+
+          source_php = Path('yablonsky-multilingual.php').read_text(encoding='utf-8')
+          source_readme = Path('readme.txt').read_text(encoding='utf-8')
+          if 'Version: 2.53.7' not in source_php or 'Stable tag: 2.53.7' not in source_readme:
+              sys.exit('FAIL: release version not normalized')
+          if not Path('LICENSE').is_file():
+              sys.exit('FAIL: missing GPL license')
+
+          out = Path('.release')
+          out.mkdir(exist_ok=True)
+          asset = out / 'yablonsky-multilingual-2.53.7.zip'
+          files = sorted(list(expected) + ['LICENSE'])
+          with ZipFile(asset, mode='w') as z:
+              for name in files:
+                  if name.startswith('docs/YMULTI_'):
+                      sys.exit('FAIL: internal document in release')
+                  info = ZipInfo('yablonsky-multilingual/' + name, date_time=(1980, 1, 1, 0, 0, 0))
+                  info.compress_type = ZIP_DEFLATED
+                  info.external_attr = 0o644 << 16
+                  z.writestr(info, Path(name).read_bytes(), compress_type=ZIP_DEFLATED, compresslevel=9)
+
+          with ZipFile(asset, mode='r') as z:
+              bad = z.testzip()
+              if bad:
+                  sys.exit(f'FAIL: ZIP CRC error: {bad}')
+              if len([n for n in z.namelist() if not n.endswith('/')]) != 181:
+                  sys.exit('FAIL: unexpected ZIP member count')
+              for name, sha in expected.items():
+                  data = z.read('yablonsky-multilingual/' + name)
+                  if hashlib.sha256(data).hexdigest() != sha:
+                      sys.exit(f'FAIL: package member differs from accepted source: {name}')
+
+          sha256 = hashlib.sha256(asset.read_bytes()).hexdigest()
+          (out / 'SHA256SUMS_2.53.7.txt').write_text(
+              sha256 + '  ' + asset.name + '\n', encoding='utf-8'
+          )
+          notes = Path('.github/RELEASE_NOTES_2.53.7.md').read_text(encoding='utf-8')
+          (out / 'RELEASE_NOTES_PUBLIC.md').write_text(
+              notes + '\n\n**Public installable ZIP SHA-256:** `' + sha256 + '`\n',
+              encoding='utf-8'
+          )
+          print('PASS: 180 accepted source hashes matched; PHP/JS/36 PO/MO unchanged')
+          print('PASS: 181 public ZIP files (accepted runtime + GPL LICENSE); seven internal notes excluded')
+          print('PASS: ZIP CRC and all member hashes')
+          print('PUBLIC_RELEASE_SHA256=' + sha256)
+          PY
+
+      - name: Run final PHP and JavaScript syntax checks
+        run: |
+          set -euo pipefail
+          find includes -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+          php -l yablonsky-multilingual.php > /dev/null
+          php -l uninstall.php > /dev/null
+          find assets blocks -name '*.js' -print0 | xargs -0 -n1 node --check > /dev/null
+          echo 'PASS: PHP and JavaScript final release checks'
+
+      - name: Publish GitHub Release and versioned ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v2.53.7 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo 'FAIL: v2.53.7 already exists; refusing to replace immutable release assets'
+            exit 1
+          fi
+          gh release create v2.53.7 \
+            '.release/yablonsky-multilingual-2.53.7.zip' \
+            '.release/SHA256SUMS_2.53.7.txt' \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title 'Yablonsky Multilingual 2.53.7' \
+            --notes-file '.release/RELEASE_NOTES_PUBLIC.md' \
+            --target "${GITHUB_SHA}" \
+            --latest
+          gh release view v2.53.7 --repo "${GITHUB_REPOSITORY}" --json tagName,name,isDraft,assets,url \
+            --jq '{tag: .tagName, name: .name, draft: .isDraft, url: .url, assets: [.assets[].name]}'
