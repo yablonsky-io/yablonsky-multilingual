@@ -32,6 +32,10 @@ jobs:
           find assets blocks -name '*.js' -print0 | xargs -0 -n1 node --check
           echo 'JavaScript syntax PASS'
 
+      - name: Security entrypoint and outbound service inventory
+        run: |
+          python3 .github/tests/security-inventory.py
+
       - name: Install gettext validators
         run: |
           sudo apt-get update -qq
