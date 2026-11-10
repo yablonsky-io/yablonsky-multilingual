@@ -1,0 +1,58 @@
+name: YMulti sync compiled MO catalogs (audit branch)
+
+on:
+  push:
+    branches:
+      - audit/wporg-compliance-ymulti
+    paths:
+      - .github/workflows/audit-sync-mo.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ymulti-mo-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/audit/wporg-compliance-ymulti' && github.repository == 'yablonsky-io/yablonsky-multilingual'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Install gettext
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gettext
+      - name: Compile all catalogs from approved PO source
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(languages/yablonsky-multilingual-*.po)
+          if [ "${#files[@]}" -ne 36 ]; then
+            echo "Expected exactly 36 PO sources"
+            exit 1
+          fi
+          for po in "${files[@]}"; do
+            mo="${po%.po}.mo"
+            msgfmt --check --check-format -o "$mo" "$po"
+            test -s "$mo"
+          done
+          count="$(find languages -maxdepth 1 -name 'yablonsky-multilingual-*.mo' | wc -l)"
+          test "$count" -eq 36
+          git diff --stat -- languages/
+      - name: Commit regenerated binary catalogs to audit branch
+        run: |
+          set -euo pipefail
+          git add -- languages/yablonsky-multilingual-*.mo
+          if git diff --cached --quiet; then
+            echo "Compiled MO catalogs already match the PO sources"
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m "i18n: regenerate 36 MO catalogs from verified PO sources"
+            git push origin HEAD:refs/heads/audit/wporg-compliance-ymulti
+          fi
