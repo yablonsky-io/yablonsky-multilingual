@@ -43,7 +43,10 @@ final class MediaAIJobs {
 
     $job = self::job();
     $job_status = sanitize_key((string)($job['status'] ?? ''));
-    $same = (string)($job['source_locale'] ?? '') === $source_locale && (string)($job['target_locale'] ?? '') === $locale && (string)($job['search'] ?? '') === $search;
+    $same = self::can_control_job()
+      && (string)($job['source_locale'] ?? '') === $source_locale
+      && (string)($job['target_locale'] ?? '') === $locale
+      && (string)($job['search'] ?? '') === $search;
     $status = $same ? $job_status : '';
     $stats = $same && isset($job['stats']) && is_array($job['stats']) ? $job['stats'] : [];
     $mode = $same ? sanitize_key((string)($job['mode'] ?? '')) : '';
