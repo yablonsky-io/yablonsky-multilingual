@@ -1,0 +1,86 @@
+name: YMulti pre-release static compliance checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-audit:
+    name: PHP, JavaScript and localization catalogs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current candidate
+        uses: actions/checkout@v4
+
+      - name: PHP syntax checks
+        run: |
+          set -euo pipefail
+          find includes -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+          php -l yablonsky-multilingual.php
+          php -l uninstall.php
+
+      - name: JavaScript syntax checks
+        run: |
+          set -euo pipefail
+          find assets blocks -name '*.js' -print0 | xargs -0 -n1 node --check
+          echo 'JavaScript syntax PASS'
+
+      - name: Install gettext validators
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gettext
+
+      - name: Validate PO source coverage, metadata and compiled MO syntax
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('languages')
+          po_files = sorted(source.glob('yablonsky-multilingual-*.po'))
+          mo_files = sorted(source.glob('yablonsky-multilingual-*.mo'))
+          pot = (source / 'yablonsky-multilingual.pot').read_text(encoding='utf-8')
+          def count_entries(s):
+              return len(re.findall(r'^msgid ', s, flags=re.MULTILINE))
+          expected = count_entries(pot)
+          errors = []
+          warnings = []
+          if len(po_files) != 36 or len(mo_files) != 36:
+              errors.append(f'Expected 36 PO and MO files; found {len(po_files)} PO, {len(mo_files)} MO')
+          po_codes = {p.stem.removeprefix('yablonsky-multilingual-') for p in po_files}
+          mo_codes = {p.stem.removeprefix('yablonsky-multilingual-') for p in mo_files}
+          if po_codes != mo_codes:
+              errors.append(f'PO/MO filename mismatch: {sorted(po_codes ^ mo_codes)}')
+          for po in po_files:
+              data = po.read_text(encoding='utf-8')
+              count = count_entries(data)
+              if count != expected:
+                  errors.append(f'{po.name}: {count} msgid entries; source POT has {expected}')
+              if not data.startswith(('msgid ""', '\nmsgid ""', '#')):
+                  errors.append(f'{po.name}: unexpected catalog preamble')
+              first_msgid = data.find('msgid ')
+              preamble = data[:first_msgid]
+              if re.search(r'(?m)^#,.*\bfuzzy\b', preamble):
+                  errors.append(f'{po.name}: fuzzy header can suppress compiled plural/locale metadata')
+              header = data[first_msgid:first_msgid + 2300]
+              if not re.search(r'Language: ', header):
+                  errors.append(f'{po.name}: missing Language header')
+              if re.search(r'approval pending|not production approved|independent.*review|editorial draft|linguistic.*pending|WIP|FULL NAME <EMAIL@ADDRESS>', header, re.IGNORECASE):
+                  warnings.append(f'{po.name}: metadata signals editorial review is not yet certified')
+          for msg in errors:
+              print('ERROR:', msg)
+          for msg in warnings:
+              print('REVIEW:', msg)
+          print(f'PO/MO pairs: {len(po_files)}/{len(mo_files)}; POT entries: {expected}; editorial warnings: {len(warnings)}')
+          if errors:
+              raise SystemExit('FAILED: localization catalog structural gate')
+          PY
+          mkdir -p /tmp/ymulti-mo-check
+          for po in languages/yablonsky-multilingual-*.po; do
+            base="$(basename "$po" .po)"
+            msgfmt --check --check-format --statistics -o "/tmp/ymulti-mo-check/${base}.mo" "$po"
+          done
+          echo 'PASS: all PO catalogs compiled to temporary MO files with gettext checks'
