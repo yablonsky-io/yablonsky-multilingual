@@ -95,7 +95,19 @@ jobs:
             echo "FAILED: $failed locale catalogs have gettext errors"
             exit 1
           fi
-          echo 'PASS: all PO catalogs compiled to temporary MO files with gettext checks'
+          mismatch=0
+          for file in /tmp/ymulti-mo-check/*.mo; do
+            target="languages/$(basename "$file")"
+            if ! cmp -s "$file" "$target"; then
+              echo "FAIL: committed MO differs from compiled PO: $target"
+              mismatch=$((mismatch + 1))
+            fi
+          done
+          if [ "$mismatch" -ne 0 ]; then
+            echo "FAILED: $mismatch MO binaries stale or nonreproducible"
+            exit 1
+          fi
+          echo 'PASS: 36 source PO catalogs compile and match 36 committed MO binaries byte-for-byte'
 
   php-matrix:
     name: PHP ${{ matrix.php }} syntax compatibility
