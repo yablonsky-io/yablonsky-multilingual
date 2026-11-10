@@ -46,3 +46,12 @@ No confirmed exploitable XSS in the paths sampled above. This must NOT be report
 5. Freeze new normalized release source, build a single installer, verify SHA-256 byte-for-byte across tested and published artifacts. No intermediary production ZIP.
 
 **Acceptance rule:** unperformed tests remain UNVERIFIED. No WordPress.org PASS and no release packaging before full gate.
+
+## 2026-11-11 — automated static and gettext audit
+
+- Added read-only GitHub Actions workflow `.github/workflows/pre-release-static-audit.yml` (PHP lint, JS syntax, PO/MO pair and catalog parity, gettext compile/format validation). Runs on pull requests, with cancel-in-progress for superseded revisions.
+- 36 PO files and 36 MO files exist. All PO catalogs and the POT have 2,054 `msgid` entries (including the header); this is structural parity only.
+- Corrected `lt_LT.po` header's stale `fuzzy` flag. Corrected contradictory `#, no-python-format, python-format` flags on the literal `100% complete` string in 34 catalogs, without changing translated text. Corrected malformed concatenated PO metadata headers in 9 catalogs that caused gettext to parse an invalid charset.
+- Initial CI run failed on `lt_LT` fuzzy header; next aggregate run exposed 33 format-validation failures; following pass exposed 9 invalid PO metadata headers. **Final static CI run 42915332872: SUCCESS** for PHP syntax, JS syntax and all 36 PO gettext compilation checks. Link: https://github.com/yablonsky-io/yablonsky-multilingual/actions/runs/42915332872.
+- **Release is still blocked**: current committed MO files were generated before this PO metadata cleanup; regenerate and independently compare all MO files against final PO sources. Static gettext SUCCESS does not certify human linguistic review, placeholder semantics outside gettext flags, RTL UI, PHP 7.4 runtime, WPCS, Plugin Check, upgrade/uninstall or WordPress role/E2E security.
+- Metadata review alerts remain in 25 catalog headers (including provisional/draft labels and placeholder translator identities). Do not silently replace with false claims of native-speaker approval; route to quality review before release.
