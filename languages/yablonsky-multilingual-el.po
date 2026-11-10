@@ -316,7 +316,7 @@ msgid "1 · Campaign scope"
 msgstr "1 · Πεδίο καμπάνιας"
 
 #: includes/class-ymulti-site-coverage.php
-#, no-python-format, python-format
+#, no-python-format
 msgid "100% complete"
 msgstr "100% ολοκληρώθηκε"
 
