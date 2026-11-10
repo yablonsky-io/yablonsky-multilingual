@@ -65,7 +65,7 @@ jobs:
               preamble = data[:first_msgid]
               if re.search(r'(?m)^#,.*\bfuzzy\b', preamble):
                   errors.append(f'{po.name}: fuzzy header can suppress compiled plural/locale metadata')
-              header = data[first_msgid:first_msgid + 2300]
+              header = data[first_msgid:].split('\n\n', 1)[0]
               if not re.search(r'Language: ', header):
                   errors.append(f'{po.name}: missing Language header')
               if re.search(r'approval pending|not production approved|independent.*review|editorial draft|linguistic.*pending|WIP|FULL NAME <EMAIL@ADDRESS>', header, re.IGNORECASE):
@@ -79,8 +79,16 @@ jobs:
               raise SystemExit('FAILED: localization catalog structural gate')
           PY
           mkdir -p /tmp/ymulti-mo-check
+          failed=0
           for po in languages/yablonsky-multilingual-*.po; do
             base="$(basename "$po" .po)"
-            msgfmt --check --check-format --statistics -o "/tmp/ymulti-mo-check/${base}.mo" "$po"
+            if ! msgfmt --check --check-format --statistics -o "/tmp/ymulti-mo-check/${base}.mo" "$po"; then
+              echo "FAIL: $po did not pass gettext format checks"
+              failed=$((failed + 1))
+            fi
           done
+          if [ "$failed" -gt 0 ]; then
+            echo "FAILED: $failed locale catalogs have gettext errors"
+            exit 1
+          fi
           echo 'PASS: all PO catalogs compiled to temporary MO files with gettext checks'
