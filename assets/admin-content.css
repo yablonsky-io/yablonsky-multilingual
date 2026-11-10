@@ -1,0 +1,49 @@
+.column-ypm_language{width:110px}.column-ypm_translations{width:330px;min-width:0}.wp-list-table td.column-ypm_translations{overflow:hidden}.ypm-lang-badge{display:inline-flex;align-items:center;justify-content:center;min-width:42px;padding:4px 8px;border-radius:999px;background:#1d2327;color:#fff;font-size:14px;font-weight:700;line-height:1.2;letter-spacing:.02em}.ypm-lang-state{display:block;margin-top:4px;color:#8c8f94;font-size:14px}.ypm-lang-state.is-legacy{color:#3858e9}.ypm-family{display:flex;flex-wrap:wrap;align-items:center;gap:7px;max-width:100%;min-width:0;white-space:normal}.ypm-family>*{flex:0 0 auto;max-width:100%}.ypm-family-progress{box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;min-width:38px;padding:4px 8px;border-radius:999px;background:#f0f0f1;color:#50575e;font-size:14px;font-weight:600;text-decoration:none}.ypm-family-chip{box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;min-width:38px;padding:4px 8px;border:1px solid #c3c4c7;border-radius:999px;background:#fff;color:#1d2327;text-decoration:none;font-size:14px;font-weight:700;line-height:1.2}.ypm-family-chip:hover,.ypm-family-chip:focus,.ypm-family-progress:hover,.ypm-family-progress:focus{border-color:#2271b1;color:#135e96;box-shadow:0 0 0 1px #2271b1;outline:none}.ypm-family-chip.is-current{border-color:#2271b1;background:#2271b1;color:#fff}.ypm-family-chip.is-current:hover,.ypm-family-chip.is-current:focus{color:#fff}.ypm-family-chip.is-missing{border-style:dashed;color:#646970;background:#f6f7f7}.ypm-family-chip.is-overflow{background:#f0f6fc;border-color:#72aee6;color:#135e96}.ypm-family-drawer-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:100100}.ypm-family-drawer-backdrop.is-open{display:block}.ypm-family-drawer{display:none;position:fixed;top:32px;right:0;bottom:0;width:min(480px,92vw);background:#fff;box-shadow:-12px 0 30px rgba(0,0,0,.18);z-index:100101;flex-direction:column}.ypm-family-drawer.is-open{display:flex}.ypm-family-drawer-open{overflow:hidden}.ypm-family-drawer__bar{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #dcdcde}.ypm-family-drawer__body{padding:16px;overflow:auto}.ypm-family-panel__title{font-size:18px}.ypm-family-panel__coverage{margin-top:4px;color:#646970}.ypm-family-search{width:100%;margin:14px 0;padding:8px 10px}.ypm-family-list{border:1px solid #dcdcde;border-radius:8px;overflow:hidden}.ypm-family-row{display:grid;grid-template-columns:minmax(0,1fr) 74px minmax(150px,auto);gap:10px;align-items:center;padding:10px 12px;border-top:1px solid #f0f0f1}.ypm-family-row:first-child{border-top:0}.ypm-family-row__name{min-width:0}.ypm-family-row__name strong,.ypm-family-row__name span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ypm-family-row__name span{margin-top:2px;color:#646970;font-size:14px}.ypm-family-row__code{justify-self:start}.ypm-family-row__action{justify-self:end}.ypm-family-status{font-size:14px;font-weight:600}.ypm-family-status.is-current{color:#135e96}@media(max-width:1100px){.column-ypm_translations{width:250px}.ypm-family-drawer{top:46px}}@media(max-width:782px){.column-ypm_language,.column-ypm_translations{width:auto}.ypm-family{flex-wrap:wrap}.ypm-family-drawer{top:0;width:100vw}}
+.ypm-family-row__action .ypm-ai-inline-form{display:inline-flex;margin:2px 0 0}.ypm-family-row__action{display:flex;justify-content:flex-end;align-items:center;gap:5px;flex-wrap:wrap}
+
+/* YMulti 2.50.7 — native WordPress list-table parity. */
+.column-ypm_language .ypm-lang-badge{width:auto!important;max-width:100%;white-space:nowrap}
+.wp-list-table .column-ypm_language{overflow:hidden}
+
+/* YMulti 2.50.8 — native WordPress Source badge parity. */
+.wp-list-table .column-ypm_language .ypm-lang-badge{
+  display:inline-flex!important;
+  width:max-content!important;
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+  color:#fff!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+
+
+/* YMulti 2.50.9 — native list-table badge must never stretch with the column. */
+.wp-admin .wp-list-table td.column-ypm_language > .ypm-lang-badge,
+.wp-admin .wp-list-table td.column-ypm_language .ypm-lang-badge{
+  display:inline-flex!important;
+  width:fit-content!important;
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+
+/* YMulti 2.50.10 — preserve native WordPress filter-bar geometry. */
+#posts-filter select.ypm-native-language-filter{
+  width:auto!important;
+  min-width:150px!important;
+  max-width:220px!important;
+  min-height:30px!important;
+  height:30px!important;
+  margin:0 6px 0 0!important;
+  vertical-align:top!important;
+}
+@media(max-width:782px){
+  #posts-filter select.ypm-native-language-filter{
+    max-width:100%!important;
+  }
+}

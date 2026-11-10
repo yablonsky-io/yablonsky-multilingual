@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "ypm/language-switcher",
+  "version": "1.0.0",
+  "title": "YMulti Language Switcher",
+  "category": "widgets",
+  "icon": "translation",
+  "description": "Displays links for the active YMulti languages.",
+  "textdomain": "yablonsky-multilingual",
+  "attributes": {
+    "type": {
+      "type": "string",
+      "default": "dropdown"
+    },
+    "showFlag": {
+      "type": "boolean",
+      "default": true
+    },
+    "showName": {
+      "type": "boolean",
+      "default": true
+    },
+    "showCode": {
+      "type": "boolean",
+      "default": false
+    },
+    "textAlign": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "supports": {
+    "html": false,
+    "customClassName": false
+  },
+  "editorScript": "ypm-language-switcher-block-editor"
+}

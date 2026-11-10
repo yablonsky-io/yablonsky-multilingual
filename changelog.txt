@@ -1,0 +1,161 @@
+=== Yablonsky Multilingual: Historical Changelog ===
+
+Previous release notes retained from the full development history.
+
+= 2.53.7 =
+* Localize Autopilot terminology across all 36 catalogs; preserve runtime, database contracts and unrelated translations.
+
+= 2.53.6 =
+* Localize Autopilot terminology consistently across Russian, Simplified Chinese and Taiwanese Traditional Chinese UI catalogs. All other translations and runtime code remain unchanged.
+
+= 2.52.4 =
+* Uses prepared metadata values plus strictly validated fixed SQL identifiers for the existing schema-v8 index check and online index creation, compatible with WordPress 6.0+.
+* Resolves the reported Plugin Check SQL parameter findings while retaining the completed v8 schema, Visual Review, WPML bridge, AI UI and translations.
+
+= 2.52.2 =
+* Fixes the missing target-post lookup index for translation job authorization. Existing InnoDB tables receive an idempotent online index on the first eligible admin visit, with schema v8 recorded only after verifying the index.
+* A large/unsupported table is left untouched and flagged in System for measured maintenance; translation content and public routing remain unchanged.
+
+= 2.52.1 =
+* Accessibility corrective: admin text, buttons, context prompts, status labels, language selectors and metric captions use a 14px minimum.
+* More resilient wrapping and control heights on narrow screens. Existing features and stored data remain unchanged.
+
+
+= 2.52.0 =
+* Adaptive Dashboard onboarding for AI-assisted translation, compact AI setup notices, and routing compatibility details on the System page.
+* Includes prior Visual Review and AI wording corrections; DB schema and public WPML routing unchanged.
+
+
+= 2.51.2 =
+* Visual Review: scoped WPML public-language links and ID-based authorized draft preview without rewriting a completed WordPress preview query; truthful frame status and per-draft edit permission.
+* Keeps native preview, WPML relationship projections, schema v7 and existing translation workflows unchanged.
+
+= 2.51.1 =
+* Restore canonical WordPress admin route resolution for Visual Review; keep preview parameters intact and Autopilot review rows isolated.
+
+= 2.51.0 =
+* Performance and verification train: unfiltered Translation Workspace reuses the already computed family count instead of running a second equivalent heavy catalog query. Explicit Source, status, search, Coverage and target-state filters retain their existing query behavior.
+* Introduces a repeatable external regression/security/performance evidence bundle for release review (not bundled into the production runtime). Existing WPML read-only bridge, Family Drawer, WordPress native list integrations, AI/background workflows and migration semantics remain unchanged. DB schema v7.
+* This train requires separate staging performance benchmark, dynamic security testing and human WordPress acceptance before production release.
+
+
+= 2.50.11 =
+* Drafts UI corrective: source/target locale chips keep readable white-on-dark labels; the row's action buttons remain in one horizontal group at desktop sizes, with horizontal overflow instead of wrapping when space is limited.
+* Targets CSS to the shared domain-cell badge contract and Drafts action layout. Immutable release-2.50.11 asset URLs; unchanged DB schema v7.
+
+= 2.50.10 =
+* Fixes the native WordPress Media Library critical error introduced in 2.50.9: attachment Translation-family rendering now resolves the row source directly instead of referencing a workspace-only variable that is undefined on upload.php. The Media list can finish rendering all rows and WordPress footer scripts / Screen Options remain available.
+* Keeps the native Posts / Pages / Products language filter as a compact WordPress select instead of replacing it with the full-width searchable YMulti picker. This restores the native filter-bar flow and prevents YMulti from forcing Yoast/WordPress filters onto extra lines.
+* Adds an explicit native-list filter contract and immutable release-2.50.10 assets. DB schema remains v7.
+
+= 2.50.9 =
+* Fixes release-asset cache identity on WordPress installations that strip `?ver=` query parameters: mutable YMulti CSS/JS now loads from an immutable per-release asset directory, so a plugin update cannot leave the browser executing stale drawer or table-layout code from an older package.
+* Restores Menus and Media Family Drawer execution on the exact live markup: row buttons with embedded family payload are handled in capture phase and open the shared drawer before third-party admin handlers can intercept the click.
+* Adds an authoritative end-of-shell Source/Coverage containment layer: language badges use content width, source type/URL metadata are clipped/ellipsized inside Source, and Source can no longer paint into Coverage.
+* Applies the same immutable release asset identity to the shared admin shell/content/language UI/media workspace assets so the fix is consistent across YMulti workspaces and native WordPress surfaces. DB schema remains v7.
+
+= 2.50.8 =
+* Corrective Family Drawer restoration: Menus and Media Localization now open the shared in-page family drawer directly from row actions instead of falling through to native/target editors.
+* Row-level family drawer data is embedded from the already-hydrated family state, so the primary Open family action is immediate and does not depend on a second AJAX round trip.
+* AJAX family loading remains as a guarded fallback for native WordPress Posts, Pages, Products, Media Library and taxonomy lists; failed AJAX no longer silently redirects to an unrelated editor.
+* Source-language context is carried through drawer fallback requests so Current/Edit/Create reflects the actual row source.
+* Source-cell CSS was corrected at the underlying selector level: language badges use intrinsic width and metadata/type/URL values are bounded and ellipsized inside the Source column.
+* Menu source metadata now uses dedicated source-type/source-meta classes instead of the generic span selector that was overriding language-badge geometry and text color.
+
+= 2.50.7 =
+* Restores the Translation Family interaction model as the canonical row workflow across Translations, Taxonomies, Menus and Media instead of requiring a global Target selection before a row becomes useful.
+* Adds the shared on-demand Family Drawer to Taxonomies, Menus and Media. Current / Edit / Create locale actions are available from one row without first changing the workspace Target filter.
+* Makes Menu and Media row checkboxes selectable independently from Target choice; Target remains a bulk/AI context rather than an enable/disable switch for the table.
+* Makes Menu and Media locale chips object actions again: each chip opens that row's concrete locale workflow instead of merely changing a global filter and leaving the user to find the row action afterward.
+* Extends the same Source + Translations family mechanism to the native WordPress Media Library, alongside Posts, Pages and Products.
+* Standardizes the equivalent source-language column label to Source across YMulti entity workspaces and native WordPress content/taxonomy/media list integrations; Language remains only where the row itself is a language definition.
+* Fixes Source-cell geometry so the language badge keeps intrinsic width and long object types such as mas_static_content are bounded instead of overlapping Coverage.
+* Standardizes entity-table action button geometry and keeps Open family available as a predictable row action across content, terms, menus and media.
+* Preserves the provider-neutral Coverage, source filtering, migration preservation, readiness palette and selector-containment corrections from 2.50.6. DB schema remains v7.
+
+= 2.50.6 =
+* Rebuilds the rejected 2.50.5 admin UX around one cross-surface interaction contract instead of per-screen variants.
+* Replaces the brown/yellow completion treatment with truthful readiness states: exact completion is green, 90–99% is green near-ready, incomplete work below 90% uses Yablonsky blue, failures remain red, and incomplete ratios can no longer round up to 100%.
+* Standardizes language-owned entity tables around Entity / Source / Coverage / Translations / Action semantics, with the same canonical Source language badge across content, terms, menus and media.
+* Makes Menu and Media target-dependent actions explicit: overview mode now says Choose target instead of showing a dead All languages action; selected targets expose Edit target / Edit source / Review draft actions with clear intent.
+* Clarifies Draft actions as Edit draft versus Edit source and suppresses the source action when both links resolve to the same object.
+* Adds viewport-aware searchable-selector positioning across the admin so right-edge dropdowns align inward rather than escaping the page.
+* Removes the brown warning palette from the YMulti admin shell in favor of brand blue for attention/progress and green for readiness.
+* Corrects Plugin Check SQL preparation findings in effective-language and media-coverage query paths while retaining WordPress 6.0 compatibility and read-only incumbent coexistence.
+* Keeps the product-wide identity, Source/Target, Coverage, family-cardinality, migration-preservation and write-authority invariants introduced by the previous corrective work. DB schema remains v7.
+
+= 2.50.5 =
+* Establishes a product-wide invariant contract for language-owned entities instead of surface-specific logic: effective identity, Source/Target semantics, family cardinality, Coverage, existing-target reuse, action scope, provenance and cache invalidation now share one provider-neutral model.
+* Makes catalog cardinality consistent: one logical translation family is one row, one total/pagination unit and one bulk/AI unit across content, native/incumbent taxonomy families, menus, media, navigation audit and background scopes.
+* Adds deterministic family-sidecar ownership for menu labels and media localization. Switching the selected Source member can no longer split YMulti labels, media text, alternate assets or AI suggestions across different physical translated objects; legacy split sidecars are merged read-compatibly.
+* Standardizes background and durable scope: Source filters propagate into rows, totals, pagination, Selected/Current page/Entire filtered scope, AI jobs, Autopilot scans and worker revalidation.
+* Standardizes target eligibility against the actual effective Source locale rather than assuming the site default language is always the source, while retaining default-language semantics only on explicit canonical-string/configuration surfaces.
+* Extends provider-neutral family invalidation to SEO/data consumers and de-duplicates navigation readiness by logical menu-item and linked-object families.
+* Makes Dashboard, Site Coverage and Integrity Audit consume the same effective family graph used by operational workspaces, with request-cache resets after identity and family-sidecar mutations.
+* Preserves coexistence write authority: incumbent relationship data remains read-only; native WooCommerce synchronization and other write-owning policies do not mutate incumbent translation relationships before YMulti identity migration.
+* Adds a documented invariant matrix and release gate for future surfaces so Coverage/filters cannot be corrected on one screen while remaining divergent elsewhere. DB schema remains v7.
+
+= 2.50.4 =
+* Standardizes provider-neutral Coverage across content, taxonomy, menu and media families so existing incumbent translations count as existing locale members instead of appearing as 1/N.
+* Makes Menus count the nav_menu_item translation family itself, in addition to localized label sidecars and translated linked objects, and de-duplicates logical menu-item families in site-level coverage.
+* Preserves existing WPML/Polylang menu labels after migration by falling back to the already translated nav_menu_item object when no YMulti label override exists; source-provider data remains read-only during coexistence.
+* Makes Media Localization reuse translated attachment-family metadata and alternate attachment objects when no YMulti sidecar overrides them, so existing media translations remain usable after identity migration.
+* Makes Media row Coverage and site-level Media coverage provider-aware for translated attachment families while retaining YMulti sidecar/alternate-asset localization semantics.
+* Keeps the same effective family truth across Translation Workspace, Translation Family detail, Taxonomies, Menus, Media, Dashboard and Launch Center instead of surface-specific native-only counts.
+* Corrects the exact Plugin Check SQL suppressions for trusted WordPress table identifiers in the native effective-language query path; DB schema remains v7.
+
+= 2.50.3 =
+* Establishes one Source/Target contract across operational language-bound surfaces: Source selects which objects enter the scope, Target selects the translation context, and actions inherit that exact scope.
+* Adds real Source language filters to Menus, Media Localization, Translation Jobs and the Autopilot review queue, with Apply/Reset controls and source-preserving pagination/redirects.
+* Propagates Source scope into menu/media Selected, Current page and Entire filtered scope AI jobs so background work cannot escape the visible server-side filter.
+* Replaces the Media Localization hardcoded default-language Source badge with effective object language and makes media totals/pagination source-aware.
+* Enforces Autopilot media source identity both for change-triggered enqueueing and backlog scans; queue review can filter Source, Target and Status.
+* Corrects provider-aware taxonomy catalog selection and documents the bounded native term meta queries for Plugin Check.
+* Reuses the same effective Source query contract in Site Translation Plan and Autopilot content/term/media scans, including background-worker queries, instead of relying on default-language assumptions or late PHP filtering.
+* Prevents same-language Source → Target actions in menu/media localization and their AI queues so Source, Target and Translate-to cannot contradict each other.
+* Refactors provider source SQL construction to keep incumbent bridge filtering read-only while avoiding checker-visible interpolated SQL identifiers; DB schema remains v7.
+
+= 2.50.2 =
+* Makes Translation Workspace Source language filtering provider-aware in WPML bridge mode and renders one incumbent translation family per row instead of treating each translated object as a separate family.
+* Keeps the rendered source object aligned with Source/Search/Content type/Status filters, so selecting RU/LT/EN-US cannot display a different-language family member that merely belongs to the same family.
+* Extends provider-aware source filtering and effective family coverage to Taxonomies, Drafts, native WordPress content lists, menu coverage, taxonomy editors and bridge-aware site coverage metrics.
+* Applies the same effective source identity to AI drafts, Translation Jobs, XLIFF, Site Translation Plan and Autopilot planning so workflow source selection cannot silently collapse incumbent RU/LT/FR objects into the default locale.
+* Synchronizes Taxonomy working-target context with AI term actions, adds explicit Apply/Reset controls, and reuses existing incumbent term targets instead of offering duplicate creation.
+* Keeps WPML discovery read-only, preserves native YMulti relationship priority, retains DB schema v7 and standalone behavior, and leaves official WordPress Plugin Check as the live acceptance gate.
+
+= 2.50.1 =
+* Adds a provider-neutral effective relation view so existing incumbent WPML/Polylang post translations count as present during bridge-mode workspace and family rendering without writing to incumbent data.
+* Reuses incumbent translated WordPress object IDs across manual creation, AI drafts, Translation Jobs and Visual Review so coexistence does not create duplicate targets that already exist externally.
+* Centralizes request-cached translated-object resolution in Runtime Authority and documents the intentional WPML hook contracts with narrow checker suppressions.
+* Sanitizes the request path before runtime URL parsing while preserving standalone YMulti behavior and DB schema v7.
+
+= 2.50.0 =
+* Adds Runtime Authority arbitration so an incumbent WPML or Polylang runtime can keep temporary ownership of public locale/routing surfaces while YMulti stays active as the translation, migration, AI and review workspace.
+* Keeps YMulti public locale filters, routing, hreflang, URL rewrites, navigation transforms, frontend media/string transforms and language-dependent WooCommerce runtime dormant during bridge mode; standalone YMulti behavior remains unchanged.
+* Extends the versioned first-party language provider with runtime owner/mode, request locale, canonical/alternate public URLs and a cache-safe language namespace for YPerf/YSEO/YSec consumers.
+* Replaces the conflict warning with a positive coexistence status and keeps source-provider discovery read-only until an explicit migration/cutover workflow.
+
+= 2.49.6 =
+* Mirrors active WPML source locales into YMulti's internal translation scope during coexistence/migration, preserving the detected source default while keeping newly mirrored locales staged until YMulti publication is explicitly enabled.
+* Makes WPML language discovery additive and non-destructive, so Translation, Taxonomy, Menu and other admin workspaces can see the source language set before routing cutover.
+* Adds an explicit All menus scope to Menu Localization and keeps the selected menu filter stable through pagination and AI actions.
+* Reuses the shared searchable YMulti picker contract for long non-language selectors; large menu, taxonomy, domain and similar option lists no longer expand as native browser sheets.
+* Extends menu AI matching to the All menus scope while preserving per-item source-menu context and existing human-review gates.
+
+= 2.49.5 =
+* Standardized disconnected Yablonsky AI setup notices as one full-width page-level contract and moved Visual Review out of primary navigation into contextual review actions.
+
+= 2.49.4 =
+* Added persistent All languages views to Media Localization and Menus and standardized AI setup notices across the main translation workflows.
+
+= 2.49.3 =
+* Reduced frontend bootstrap work by deferring admin/AI/review modules and removed empty bulk-selection UI shells.
+
+= 2.49.2 =
+* Rebuilt product navigation around one canonical workflow, introduced Plan as a first-class workspace, unified language publication controls, and completed the first major runtime optimization pass.
+
+= 2.48.0 =
+* Added the first-class Drafts workspace with filters, pagination, batch review actions and a live queue badge.
+
+= 2.47.2 =
+* Stabilized Translation Workspace family ordering and compact target-action layout.
