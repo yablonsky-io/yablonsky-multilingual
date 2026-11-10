@@ -25,4 +25,8 @@ Declared minimums: WordPress 6.0 and PHP 7.4. The package declares `Tested up to
 
 [**Yablonsky Multilingual plugin for WordPress**](https://yablonsky.io/multilingual/) · [**Yablonsky.io**](https://yablonsky.io/) · [**Yablonsky AI**](https://ai.yablonsky.io/)
 
-**Release asset SHA-256:** `64fd0aed43e26542b061d5c58e7f2859cc2fa8ac06eab1dd12594437052aecba`
+**Accepted QA installer SHA-256 (internal archive):** `64fd0aed43e26542b061d5c58e7f2859cc2fa8ac06eab1dd12594437052aecba`.
+
+**Public packaging:** All 180 shipping source/translation files are byte-identical to the accepted 2.53.7 runtime. Seven historical internal engineering notes are excluded from the public installer. The public ZIP has its own checksum, attached to this Release. This is a packaging-only cleanup, not a runtime change.
+
+Related independent tools: [**Yablonsky SEO — GEO & AEO for WordPress**](https://yablonsky.io/seo/) · [**Yablonsky Security plugin**](https://github.com/yablonsky-io/yablonsky-security) · [**Yablonsky AI Chatbots for WordPress**](https://yablonsky.io/ai-chatbots/).
