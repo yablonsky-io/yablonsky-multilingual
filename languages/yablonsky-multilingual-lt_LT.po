@@ -3,7 +3,6 @@
 # This file is distributed under the same license as the Yablonsky
 # Multilingual
 # package.
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: Yablonsky Multilingual 2.42.0\n"
