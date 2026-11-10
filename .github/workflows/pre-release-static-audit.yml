@@ -96,3 +96,59 @@ jobs:
             exit 1
           fi
           echo 'PASS: all PO catalogs compiled to temporary MO files with gettext checks'
+
+  php-matrix:
+    name: PHP ${{ matrix.php }} syntax compatibility
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.1', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Lint every shipped PHP file
+        run: |
+          set -euo pipefail
+          find includes -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          php -l yablonsky-multilingual.php >/dev/null
+          php -l uninstall.php >/dev/null
+          echo "PASS: all shipped PHP parses in PHP ${{ matrix.php }}"
+
+  wordpress-plugin-check:
+    name: WordPress.org Plugin Check (clean staged product)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage only accepted runtime inventory
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from shutil import copy2
+          import json
+          manifest=json.loads(Path('.github/RELEASE_SOURCE_SHA256_2.53.7.json').read_text(encoding='utf8'))
+          files=sorted(set(manifest['files'])|{'LICENSE'})
+          root=Path('.ci-stage/yablonsky-multilingual')
+          for name in files:
+              p=Path(name)
+              if p.is_absolute() or '..' in p.parts or not p.is_file():
+                  raise SystemExit('Unsafe/missing source path: '+name)
+              if name.startswith('docs/YMULTI_'):
+                  raise SystemExit('Internal docs cannot enter plugin package: '+name)
+              dest=root/p
+              dest.parent.mkdir(parents=True,exist_ok=True)
+              copy2(p,dest)
+          if len(files)!=181:
+              raise SystemExit(f'Unexpected package inventory: {len(files)}')
+          print(f'Staged {len(files)} plugin files for WordPress.org scan')
+          PY
+      - name: Official WordPress Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ./.ci-stage/yablonsky-multilingual
+          include-experimental: 'false'
