@@ -26,6 +26,355 @@ jobs:
           php -l yablonsky-multilingual.php
           php -l uninstall.php
 
+      - name: Verify normalized version and WordPress.org headers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          source=Path('yablonsky-multilingual.php').read_text(encoding='utf8')
+          readme=Path('readme.txt').read_text(encoding='utf8')
+          changelog=Path('changelog.txt').read_text(encoding='utf8')
+          checks=[
+            re.search(r'(?m)^\s*\* Version: (\d+\.\d+\.\d+)\s*
+          set -euo pipefail
+          find assets blocks -name '*.js' -print0 | xargs -0 -n1 node --check
+          echo 'JavaScript syntax PASS'
+
+      - name: Security entrypoint and outbound service inventory
+        run: |
+          python3 .github/tests/security-inventory.py
+
+      - name: Install gettext validators
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gettext
+
+      - name: Validate PO source coverage, metadata and compiled MO syntax
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('languages')
+          po_files = sorted(source.glob('yablonsky-multilingual-*.po'))
+          mo_files = sorted(source.glob('yablonsky-multilingual-*.mo'))
+          pot = (source / 'yablonsky-multilingual.pot').read_text(encoding='utf-8')
+          def count_entries(s):
+              return len(re.findall(r'^msgid ', s, flags=re.MULTILINE))
+          expected = count_entries(pot)
+          errors = []
+          warnings = []
+          if len(po_files) != 36 or len(mo_files) != 36:
+              errors.append(f'Expected 36 PO and MO files; found {len(po_files)} PO, {len(mo_files)} MO')
+          po_codes = {p.stem.removeprefix('yablonsky-multilingual-') for p in po_files}
+          mo_codes = {p.stem.removeprefix('yablonsky-multilingual-') for p in mo_files}
+          if po_codes != mo_codes:
+              errors.append(f'PO/MO filename mismatch: {sorted(po_codes ^ mo_codes)}')
+          for po in po_files:
+              data = po.read_text(encoding='utf-8')
+              count = count_entries(data)
+              if count != expected:
+                  errors.append(f'{po.name}: {count} msgid entries; source POT has {expected}')
+              if not data.startswith(('msgid ""', '\nmsgid ""', '#')):
+                  errors.append(f'{po.name}: unexpected catalog preamble')
+              first_msgid = data.find('msgid ')
+              preamble = data[:first_msgid]
+              if re.search(r'(?m)^#,.*\bfuzzy\b', preamble):
+                  errors.append(f'{po.name}: fuzzy header can suppress compiled plural/locale metadata')
+              header = data[first_msgid:].split('\n\n', 1)[0]
+              if not re.search(r'Language: ', header):
+                  errors.append(f'{po.name}: missing Language header')
+              if re.search(r'approval pending|not production approved|independent.*review|editorial draft|linguistic.*pending|WIP|FULL NAME <EMAIL@ADDRESS>', header, re.IGNORECASE):
+                  warnings.append(f'{po.name}: metadata signals editorial review is not yet certified')
+          for msg in errors:
+              print('ERROR:', msg)
+          for msg in warnings:
+              print('REVIEW:', msg)
+          print(f'PO/MO pairs: {len(po_files)}/{len(mo_files)}; POT entries: {expected}; editorial warnings: {len(warnings)}')
+          if errors:
+              raise SystemExit('FAILED: localization catalog structural gate')
+          PY
+          mkdir -p /tmp/ymulti-mo-check
+          failed=0
+          for po in languages/yablonsky-multilingual-*.po; do
+            base="$(basename "$po" .po)"
+            if ! msgfmt --check --check-format --statistics -o "/tmp/ymulti-mo-check/${base}.mo" "$po"; then
+              echo "FAIL: $po did not pass gettext format checks"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            echo "FAILED: $failed locale catalogs have gettext errors"
+            exit 1
+          fi
+          mismatch=0
+          for file in /tmp/ymulti-mo-check/*.mo; do
+            target="languages/$(basename "$file")"
+            if ! cmp -s "$file" "$target"; then
+              echo "FAIL: committed MO differs from compiled PO: $target"
+              mismatch=$((mismatch + 1))
+            fi
+          done
+          if [ "$mismatch" -ne 0 ]; then
+            echo "FAILED: $mismatch MO binaries stale or nonreproducible"
+            exit 1
+          fi
+          echo 'PASS: 36 source PO catalogs compile and match 36 committed MO binaries byte-for-byte'
+
+  php-matrix:
+    name: PHP ${{ matrix.php }} syntax compatibility
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.1', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Lint every shipped PHP file
+        run: |
+          set -euo pipefail
+          find includes -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          php -l yablonsky-multilingual.php >/dev/null
+          php -l uninstall.php >/dev/null
+          echo "PASS: all shipped PHP parses in PHP ${{ matrix.php }}"
+
+  wordpress-plugin-check:
+    name: WordPress.org Plugin Check (clean staged product)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage only accepted runtime inventory
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from shutil import copy2
+          import json
+          manifest=json.loads(Path('.github/PLUGIN_PACKAGE_FILES.json').read_text(encoding='utf8'))
+          files=manifest['files']
+          if manifest.get('schema')!=1 or len(files)!=167 or len(files)!=len(set(files)):
+              raise SystemExit('Invalid clean candidate inventory')
+          expected=set(files)
+          actual={p.as_posix() for dirname in ('assets','blocks','includes','languages') for p in Path(dirname).rglob('*') if p.is_file()}
+          actual|={p.as_posix() for p in Path('docs').glob('YABLONSKY_PRODUCT_VERSIONING_CANON*.md') if p.is_file()}
+          actual|={'LICENSE','changelog.txt','readme.txt','uninstall.php','yablonsky-multilingual.php'}
+          if actual!=expected:
+              raise SystemExit('Candidate inventory mismatch: extra='+repr(sorted(actual-expected))+' missing='+repr(sorted(expected-actual)))
+          bootstrap=Path('yablonsky-multilingual.php').read_text(encoding='utf8')
+          if "define('YPM_ASSET_URL', YPM_URL . 'assets/');" not in bootstrap:
+              raise SystemExit('Canonical version-independent asset URL is required')
+          root=Path('.ci-stage/yablonsky-multilingual')
+          for name in files:
+              p=Path(name)
+              if p.is_absolute() or '..' in p.parts or not p.is_file():
+                  raise SystemExit('Unsafe/missing source path: '+name)
+              if name.startswith('docs/YMULTI_') or name.startswith('assets/release-'):
+                  raise SystemExit('Internal or duplicated file in package: '+name)
+              dest=root/p
+              dest.parent.mkdir(parents=True,exist_ok=True)
+              copy2(p,dest)
+          print(f'Staged {len(files)} clean plugin files for WordPress.org scan')
+          PY
+      - name: Official WordPress Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ./.ci-stage/yablonsky-multilingual
+          include-experimental: 'false'
+      - name: WordPress runtime smoke — real MO locales, routes and assets
+        run: |
+          set -euo pipefail
+          cp .github/tests/ymulti-runtime-smoke.php .ci-stage/yablonsky-multilingual/.ymulti-ci-runtime.php
+          if command -v wp-env >/dev/null 2>&1; then
+            wp-env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-runtime.php
+          else
+            npx --yes @wordpress/env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-runtime.php
+          fi
+          rm -f .ci-stage/yablonsky-multilingual/.ymulti-ci-runtime.php
+,source),
+            re.search(r"define\('YPM_VERSION', '(\d+\.\d+\.\d+)'\)",source),
+            re.search(r'(?m)^Stable tag: (\d+\.\d+\.\d+)\s*
+          set -euo pipefail
+          find assets blocks -name '*.js' -print0 | xargs -0 -n1 node --check
+          echo 'JavaScript syntax PASS'
+
+      - name: Security entrypoint and outbound service inventory
+        run: |
+          python3 .github/tests/security-inventory.py
+
+      - name: Install gettext validators
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gettext
+
+      - name: Validate PO source coverage, metadata and compiled MO syntax
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('languages')
+          po_files = sorted(source.glob('yablonsky-multilingual-*.po'))
+          mo_files = sorted(source.glob('yablonsky-multilingual-*.mo'))
+          pot = (source / 'yablonsky-multilingual.pot').read_text(encoding='utf-8')
+          def count_entries(s):
+              return len(re.findall(r'^msgid ', s, flags=re.MULTILINE))
+          expected = count_entries(pot)
+          errors = []
+          warnings = []
+          if len(po_files) != 36 or len(mo_files) != 36:
+              errors.append(f'Expected 36 PO and MO files; found {len(po_files)} PO, {len(mo_files)} MO')
+          po_codes = {p.stem.removeprefix('yablonsky-multilingual-') for p in po_files}
+          mo_codes = {p.stem.removeprefix('yablonsky-multilingual-') for p in mo_files}
+          if po_codes != mo_codes:
+              errors.append(f'PO/MO filename mismatch: {sorted(po_codes ^ mo_codes)}')
+          for po in po_files:
+              data = po.read_text(encoding='utf-8')
+              count = count_entries(data)
+              if count != expected:
+                  errors.append(f'{po.name}: {count} msgid entries; source POT has {expected}')
+              if not data.startswith(('msgid ""', '\nmsgid ""', '#')):
+                  errors.append(f'{po.name}: unexpected catalog preamble')
+              first_msgid = data.find('msgid ')
+              preamble = data[:first_msgid]
+              if re.search(r'(?m)^#,.*\bfuzzy\b', preamble):
+                  errors.append(f'{po.name}: fuzzy header can suppress compiled plural/locale metadata')
+              header = data[first_msgid:].split('\n\n', 1)[0]
+              if not re.search(r'Language: ', header):
+                  errors.append(f'{po.name}: missing Language header')
+              if re.search(r'approval pending|not production approved|independent.*review|editorial draft|linguistic.*pending|WIP|FULL NAME <EMAIL@ADDRESS>', header, re.IGNORECASE):
+                  warnings.append(f'{po.name}: metadata signals editorial review is not yet certified')
+          for msg in errors:
+              print('ERROR:', msg)
+          for msg in warnings:
+              print('REVIEW:', msg)
+          print(f'PO/MO pairs: {len(po_files)}/{len(mo_files)}; POT entries: {expected}; editorial warnings: {len(warnings)}')
+          if errors:
+              raise SystemExit('FAILED: localization catalog structural gate')
+          PY
+          mkdir -p /tmp/ymulti-mo-check
+          failed=0
+          for po in languages/yablonsky-multilingual-*.po; do
+            base="$(basename "$po" .po)"
+            if ! msgfmt --check --check-format --statistics -o "/tmp/ymulti-mo-check/${base}.mo" "$po"; then
+              echo "FAIL: $po did not pass gettext format checks"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            echo "FAILED: $failed locale catalogs have gettext errors"
+            exit 1
+          fi
+          mismatch=0
+          for file in /tmp/ymulti-mo-check/*.mo; do
+            target="languages/$(basename "$file")"
+            if ! cmp -s "$file" "$target"; then
+              echo "FAIL: committed MO differs from compiled PO: $target"
+              mismatch=$((mismatch + 1))
+            fi
+          done
+          if [ "$mismatch" -ne 0 ]; then
+            echo "FAILED: $mismatch MO binaries stale or nonreproducible"
+            exit 1
+          fi
+          echo 'PASS: 36 source PO catalogs compile and match 36 committed MO binaries byte-for-byte'
+
+  php-matrix:
+    name: PHP ${{ matrix.php }} syntax compatibility
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.1', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Lint every shipped PHP file
+        run: |
+          set -euo pipefail
+          find includes -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          php -l yablonsky-multilingual.php >/dev/null
+          php -l uninstall.php >/dev/null
+          echo "PASS: all shipped PHP parses in PHP ${{ matrix.php }}"
+
+  wordpress-plugin-check:
+    name: WordPress.org Plugin Check (clean staged product)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage only accepted runtime inventory
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from shutil import copy2
+          import json
+          manifest=json.loads(Path('.github/PLUGIN_PACKAGE_FILES.json').read_text(encoding='utf8'))
+          files=manifest['files']
+          if manifest.get('schema')!=1 or len(files)!=167 or len(files)!=len(set(files)):
+              raise SystemExit('Invalid clean candidate inventory')
+          expected=set(files)
+          actual={p.as_posix() for dirname in ('assets','blocks','includes','languages') for p in Path(dirname).rglob('*') if p.is_file()}
+          actual|={p.as_posix() for p in Path('docs').glob('YABLONSKY_PRODUCT_VERSIONING_CANON*.md') if p.is_file()}
+          actual|={'LICENSE','changelog.txt','readme.txt','uninstall.php','yablonsky-multilingual.php'}
+          if actual!=expected:
+              raise SystemExit('Candidate inventory mismatch: extra='+repr(sorted(actual-expected))+' missing='+repr(sorted(expected-actual)))
+          bootstrap=Path('yablonsky-multilingual.php').read_text(encoding='utf8')
+          if "define('YPM_ASSET_URL', YPM_URL . 'assets/');" not in bootstrap:
+              raise SystemExit('Canonical version-independent asset URL is required')
+          root=Path('.ci-stage/yablonsky-multilingual')
+          for name in files:
+              p=Path(name)
+              if p.is_absolute() or '..' in p.parts or not p.is_file():
+                  raise SystemExit('Unsafe/missing source path: '+name)
+              if name.startswith('docs/YMULTI_') or name.startswith('assets/release-'):
+                  raise SystemExit('Internal or duplicated file in package: '+name)
+              dest=root/p
+              dest.parent.mkdir(parents=True,exist_ok=True)
+              copy2(p,dest)
+          print(f'Staged {len(files)} clean plugin files for WordPress.org scan')
+          PY
+      - name: Official WordPress Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ./.ci-stage/yablonsky-multilingual
+          include-experimental: 'false'
+      - name: WordPress runtime smoke — real MO locales, routes and assets
+        run: |
+          set -euo pipefail
+          cp .github/tests/ymulti-runtime-smoke.php .ci-stage/yablonsky-multilingual/.ymulti-ci-runtime.php
+          if command -v wp-env >/dev/null 2>&1; then
+            wp-env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-runtime.php
+          else
+            npx --yes @wordpress/env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-runtime.php
+          fi
+          rm -f .ci-stage/yablonsky-multilingual/.ymulti-ci-runtime.php
+,readme),
+          ]
+          if not all(checks):
+            raise SystemExit('FAIL: missing version header, constant or Stable tag')
+          versions=[x.group(1) for x in checks]
+          if len(set(versions))!=1:
+            raise SystemExit('FAIL: inconsistent version labels: '+repr(versions))
+          major,minor,patch=map(int,versions[0].split('.'))
+          if minor>=100 or patch>=10:
+            raise SystemExit('FAIL: version rollover required before release')
+          canon=Path('docs/YABLONSKY_PRODUCT_VERSIONING_CANON_v1.0.0_2026-09-21.md')
+          if not canon.is_file():
+            raise SystemExit('FAIL: missing required versioning canon')
+          if versions[0] not in changelog:
+            raise SystemExit('FAIL: current version absent from changelog')
+          print('PASS: normalized product version, Stable tag, changelog and canon: '+versions[0])
+          PY
+
       - name: JavaScript syntax checks
         run: |
           set -euo pipefail
