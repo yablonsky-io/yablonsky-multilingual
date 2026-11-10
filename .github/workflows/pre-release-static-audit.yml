@@ -173,3 +173,13 @@ jobs:
         with:
           build-dir: ./.ci-stage/yablonsky-multilingual
           include-experimental: 'false'
+      - name: WordPress runtime smoke — real MO locales, routes and assets
+        run: |
+          set -euo pipefail
+          cp .github/tests/ymulti-runtime-smoke.php .ci-stage/yablonsky-multilingual/.ymulti-ci-runtime.php
+          if command -v wp-env >/dev/null 2>&1; then
+            wp-env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-runtime.php
+          else
+            npx --yes @wordpress/env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-runtime.php
+          fi
+          rm -f .ci-stage/yablonsky-multilingual/.ymulti-ci-runtime.php
