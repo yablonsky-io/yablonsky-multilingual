@@ -53,5 +53,33 @@ No confirmed exploitable XSS in the paths sampled above. This must NOT be report
 - 36 PO files and 36 MO files exist. All PO catalogs and the POT have 2,054 `msgid` entries (including the header); this is structural parity only.
 - Corrected `lt_LT.po` header's stale `fuzzy` flag. Corrected contradictory `#, no-python-format, python-format` flags on the literal `100% complete` string in 34 catalogs, without changing translated text. Corrected malformed concatenated PO metadata headers in 9 catalogs that caused gettext to parse an invalid charset.
 - Initial CI run failed on `lt_LT` fuzzy header; next aggregate run exposed 33 format-validation failures; following pass exposed 9 invalid PO metadata headers. **Final static CI run 42915332872: SUCCESS** for PHP syntax, JS syntax and all 36 PO gettext compilation checks. Link: https://github.com/yablonsky-io/yablonsky-multilingual/actions/runs/42915332872.
-- **Release is still blocked**: current committed MO files were generated before this PO metadata cleanup; regenerate and independently compare all MO files against final PO sources. Static gettext SUCCESS does not certify human linguistic review, placeholder semantics outside gettext flags, RTL UI, PHP 7.4 runtime, WPCS, Plugin Check, upgrade/uninstall or WordPress role/E2E security.
+- **Superseded by the later evidence below**: at this point, committed MO binaries were stale. They have since been regenerated and passed exact byte-comparison against the corrected PO sources. This does not certify independent linguistic review, RTL UI, PHP 7.4 runtime, upgrade/uninstall or WordPress role/E2E security.
 - Metadata review alerts remain in 25 catalog headers (including provisional/draft labels and placeholder translator identities). Do not silently replace with false claims of native-speaker approval; route to quality review before release.
+
+## 2026-11-11 — consolidated build, runtime and directory checks
+
+### Verified source/build facts
+
+- The one-time GitHub Actions job `42922974198` succeeded and generated **all 36 version-controlled MO binaries** from corrected PO files. Commit `6acf94c1cf14fac2eb3f4b828fab28b183253110` changed exactly 36 `.mo` files.
+- The CI gettext gate now recompiles all PO files and compares the temporary outputs **byte-for-byte** with each checked-in MO. Run `42924769931`: PASS; all 36 match.
+- The plugin previously set `YPM_ASSET_URL` to `assets/release-` plus its own version. This would have broken assets on the next version increment without copying the versioned directory. All 14 files under `assets/release-2.53.7/` were blob-identical to `assets/`. Moved runtime URL to the canonical `assets/` and deleted all 14 redundant files in one atomic commit `a577e4537d30cb91c4d155999ca2eef4a9ec7eb5`.
+- Added version-independent candidate inventory `.github/PLUGIN_PACKAGE_FILES.json`, currently **167 files** including `LICENSE` and the required product-versioning canon. CI tests exact inventory equality, disallows duplicate release asset dirs, and stages only the clean product.
+- Retired the completed one-time MO synchronization workflow and the obsolete hardcoded 2.53.7 release publisher workflow. Their historical successful runs/releases remain intact.
+- Added normalized version checks across the plugin header, `YPM_VERSION`, WordPress.org Stable tag, changelog and versioning canon. Next corrective release coordinate remains to be assigned consistently; baseline is still `2.53.7`.
+
+### Independently executed CI evidence
+
+- GitHub Actions `42924769931` succeeded: PHP syntax on **7.4, 8.1, 8.3 and 8.4**, JavaScript lint, gettext compile plus byte-for-byte PO/MO agreement, official WordPress Plugin Check in a disposable WordPress environment and an isolated runtime smoke.
+- WordPress Plugin Check activated the clean staged plugin and returned **No errors found**. This does not replace all manual WordPress.org review, individual role/nonce tests or full WPCS policy checks.
+- Real WordPress runtime smoke loaded MO translations for `zh_CN`, `zh_TW`, `de_DE`, `ru_RU`, `ar`, `he_IL` and resolved translated string `1 row selected` correctly. It also validated plugin activation, REST route registration and runtime asset files. This is stronger than checking file counts, but is **not** an actual browser test of each admin user locale.
+- Source-wide inventory read 74 PHP files and 19 JS files (including historical versioned duplicates before deletion). A repeatable CI tripwire scans the clean candidate: 73 PHP files excluding `uninstall.php`, 10 JS, 12 authenticated AJAX hooks, 86 admin-post hooks, 3 registered REST routes and 9 outbound PHP HTTP call sites. Calls are confined to known Yablonsky AI, optional Frankfurter and secure AI-generated image-download flows; no hardcoded third-party browser transport detected. This is not a proof of IDOR/XSS absence.
+- Verified that Frankfurter's provider documentation and terms page exist and cover the ECB route; independently checked the Yablonsky AI terms/privacy URLs. The optional FX schedule is activated by the merchant's choice of automatic source; manual FX/local multilingual operation does not contact Frankfurter.
+
+### Release-blocking remaining work
+
+1. Real WordPress roles and object-level security matrix (including media alternate-image authorization, ownerless/foreign AI campaign, AI compute rights, draft/private resources, CSRF), with regression tests that prove fixes work.
+2. WordPress/WooCommerce browser-level admin language switching (not merely direct MO loading), 36 locale QA with 41 intended variants, RTL, long labels, translation semantic quality. Catalog metadata in 25 languages still reflects draft or unverified editorial provenance; do not falsely mark human linguistic certification.
+3. Separate comprehensive WPCS, PHP 7.4 runtime behavior (not just syntax), full install/upgrade/multisite/cron/compatibility, error logging and clean uninstall tests.
+4. Assign new normalized corrective version across all release coordinates; freeze audited tree; build and verify **one** clean installable ZIP against the exact passing source revision. Do not overwrite published `v2.53.7` or merge this draft before all required gates have evidence.
+
+**Current release decision: HOLD. Working branch only, `main` and public `v2.53.7` unchanged.**
