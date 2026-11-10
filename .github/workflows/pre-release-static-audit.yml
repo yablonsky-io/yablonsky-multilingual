@@ -143,21 +143,30 @@ jobs:
           from pathlib import Path
           from shutil import copy2
           import json
-          manifest=json.loads(Path('.github/RELEASE_SOURCE_SHA256_2.53.7.json').read_text(encoding='utf8'))
-          files=sorted(set(manifest['files'])|{'LICENSE'})
+          manifest=json.loads(Path('.github/PLUGIN_PACKAGE_FILES.json').read_text(encoding='utf8'))
+          files=manifest['files']
+          if manifest.get('schema')!=1 or len(files)!=167 or len(files)!=len(set(files)):
+              raise SystemExit('Invalid clean candidate inventory')
+          expected=set(files)
+          actual={p.as_posix() for dirname in ('assets','blocks','includes','languages') for p in Path(dirname).rglob('*') if p.is_file()}
+          actual|={p.as_posix() for p in Path('docs').glob('YABLONSKY_PRODUCT_VERSIONING_CANON*.md') if p.is_file()}
+          actual|={'LICENSE','changelog.txt','readme.txt','uninstall.php','yablonsky-multilingual.php'}
+          if actual!=expected:
+              raise SystemExit('Candidate inventory mismatch: extra='+repr(sorted(actual-expected))+' missing='+repr(sorted(expected-actual)))
+          bootstrap=Path('yablonsky-multilingual.php').read_text(encoding='utf8')
+          if "define('YPM_ASSET_URL', YPM_URL . 'assets/');" not in bootstrap:
+              raise SystemExit('Canonical version-independent asset URL is required')
           root=Path('.ci-stage/yablonsky-multilingual')
           for name in files:
               p=Path(name)
               if p.is_absolute() or '..' in p.parts or not p.is_file():
                   raise SystemExit('Unsafe/missing source path: '+name)
-              if name.startswith('docs/YMULTI_'):
-                  raise SystemExit('Internal docs cannot enter plugin package: '+name)
+              if name.startswith('docs/YMULTI_') or name.startswith('assets/release-'):
+                  raise SystemExit('Internal or duplicated file in package: '+name)
               dest=root/p
               dest.parent.mkdir(parents=True,exist_ok=True)
               copy2(p,dest)
-          if len(files)!=181:
-              raise SystemExit(f'Unexpected package inventory: {len(files)}')
-          print(f'Staged {len(files)} plugin files for WordPress.org scan')
+          print(f'Staged {len(files)} clean plugin files for WordPress.org scan')
           PY
       - name: Official WordPress Plugin Check
         uses: wordpress/plugin-check-action@v1
