@@ -84,10 +84,7 @@ final class MigrationTools {
     }
 
     echo '<div class="ypm-metrics ypm-metrics--4">';
-    Admin::render_metric(__('Detected sources', 'yablonsky-multilingual'), (string) $detected_count, sprintf(
-      /* translators: %d: number of enabled migration sources. */
-      __('Of %d supported', 'yablonsky-multilingual'), count($source_labels)
-    ), 'neutral');
+    Admin::render_metric(__('Detected sources', 'yablonsky-multilingual'), (string) $detected_count, implode(' · ', array_values($source_labels)), 'neutral');
     Admin::render_metric(__('Fresh dry runs', 'yablonsky-multilingual'), (string) $ready_dryruns, __('Eligible for import', 'yablonsky-multilingual'), $ready_dryruns > 0 ? 'attention' : 'neutral');
     Admin::render_metric(__('Source data', 'yablonsky-multilingual'), __('Preserved', 'yablonsky-multilingual'), __('Stays enabled until the administrator changes it', 'yablonsky-multilingual'), 'pass');
     Admin::render_metric(__('Current job', 'yablonsky-multilingual'), $job_status, !empty($job['source']) ? strtoupper((string) $job['source']) : __('Migration ready to configure', 'yablonsky-multilingual'), $job_state);
