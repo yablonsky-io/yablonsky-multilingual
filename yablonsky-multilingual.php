@@ -73,8 +73,8 @@ define('YPM_MIN_PHP', '7.4');
 define('YPM_MIN_WP', '6.0');
 define('YPM_PATH', plugin_dir_path(__FILE__));
 define('YPM_URL', plugin_dir_url(__FILE__));
-// Immutable per-release asset path: survives query-string stripping by cache/performance layers.
-define('YPM_ASSET_URL', YPM_URL . 'assets/release-' . YPM_VERSION . '/');
+// Canonical version-independent asset directory; WordPress enqueue versions handle cache refresh.
+define('YPM_ASSET_URL', YPM_URL . 'assets/');
 
 // Canonical YMulti aliases. Legacy YPM constants remain for data/API compatibility.
 define('YMULTI_VERSION', YPM_VERSION);

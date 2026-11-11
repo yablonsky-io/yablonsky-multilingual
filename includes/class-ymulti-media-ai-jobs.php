@@ -43,7 +43,10 @@ final class MediaAIJobs {
 
     $job = self::job();
     $job_status = sanitize_key((string)($job['status'] ?? ''));
-    $same = (string)($job['source_locale'] ?? '') === $source_locale && (string)($job['target_locale'] ?? '') === $locale && (string)($job['search'] ?? '') === $search;
+    $same = self::can_control_job()
+      && (string)($job['source_locale'] ?? '') === $source_locale
+      && (string)($job['target_locale'] ?? '') === $locale
+      && (string)($job['search'] ?? '') === $search;
     $status = $same ? $job_status : '';
     $stats = $same && isset($job['stats']) && is_array($job['stats']) ? $job['stats'] : [];
     $mode = $same ? sanitize_key((string)($job['mode'] ?? '')) : '';
@@ -366,6 +369,9 @@ final class MediaAIJobs {
     }
 
     $job = self::job();
+    if (!self::can_control_job()) {
+      wp_send_json_error(['message' => __('Forbidden', 'yablonsky-multilingual')], 403);
+    }
     $stats = isset($job['stats']) && is_array($job['stats']) ? $job['stats'] : [];
     $job_total = max(0, (int)($job['job_total'] ?? $job['total_scope'] ?? 0));
     $status = sanitize_key((string)($job['status'] ?? ''));
@@ -619,7 +625,7 @@ final class MediaAIJobs {
   private static function can_control_job(): bool {
     $job = self::job();
     $owner = absint($job['started_by'] ?? 0);
-    return $owner <= 0 || $owner === get_current_user_id() || current_user_can('manage_options');
+    return current_user_can('manage_options') || ($owner > 0 && $owner === get_current_user_id());
   }
 
   /** @param array<string,mixed> $job */

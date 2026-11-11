@@ -214,6 +214,9 @@ public static function clear_ai_suggestion(int $attachment_id, string $locale): 
 
   public static function save_full(int $attachment_id, string $locale, string $title, string $alt, string $caption, string $description, int $alternate_id = 0): bool {
     if ($attachment_id <= 0 || get_post_type($attachment_id) !== 'attachment' || !EntityContract::post_target_allowed($attachment_id, $locale)) return false;
+    // An alternate asset may be a different user's attachment. Reject it before
+    // writing any sidecar data unless this actor can edit the selected object.
+    if ($alternate_id > 0 && !current_user_can('edit_post', $alternate_id)) return false;
     $owner = EntityContract::post_sidecar_owner_id($attachment_id);
     if ($owner <= 0) return false;
     $title = sanitize_text_field($title);

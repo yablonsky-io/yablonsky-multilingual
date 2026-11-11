@@ -1,13 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Yablonsky Multilingual 2.35 source freeze\\nReport-"
-"Msgid-Bugs-To: https://yablonsky.io/\\nPOT-Creation-Date: 2026-09-24 "
-"20:50+0300\\nPO-Revision-Date: 2026-09-24 20:50+0300\\nLast-Translator: "
-"Yablonsky.io\\nLanguage-Team: Yablonsky.io\\nLanguage: it_IT\\nMIME-"
-"Version: 1.0\\nContent-Type: text/plain; charset=UTF-8\\nContent-Transfer-"
-"Encoding: 8bit\\nPlural-Forms: nplurals=2; plural=(n != 1);\\nX-Domain: "
-"yablonsky-multilingual\\nX-Generator: YMulti Localization Train\\n\n"
+"Project-Id-Version: Yablonsky Multilingual 2.53.7\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2026-09-25 10:27+0000\n"
 "PO-Revision-Date: 2026-09-27 00:00+0000\n"
@@ -316,7 +310,7 @@ msgid "1 · Campaign scope"
 msgstr "1 · Ambito campagna"
 
 #: includes/class-ymulti-site-coverage.php:37
-#, no-python-format, python-format
+#, no-python-format
 msgid "100% complete"
 msgstr "100% completato"
 

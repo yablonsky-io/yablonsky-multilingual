@@ -71,6 +71,12 @@ Vision review starts per image and may consume workspace credits. It can report 
 
 == External services ==
 
+Frankfurter exchange-rate API (https://frankfurter.dev/) is used only if a merchant selects the optional automatic exchange-rate source in YMulti's multicurrency settings. On initial enablement and while automatic rates remain selected, the site's server requests publicly available reference rates from https://api.frankfurter.dev/v2/providers/ecb/rates. The request includes configured base and target currency codes. It does not intentionally include customer records, order details, translated content, WordPress account credentials or the Yablonsky AI API key. The remote service and network intermediaries may receive standard connection metadata. Sites may keep manual rates instead; automatic fetching is not needed for the multilingual core.
+
+Frankfurter service: https://frankfurter.dev/
+Frankfurter license, provider terms and disclaimer: https://frankfurter.dev/license/
+Frankfurter API privacy explanation: https://frankfurter.dev/ (FAQ: privacy policy)
+
 Yablonsky AI is an optional external service activated by an administrator who connects a User API key and starts an AI action. For structured HTML-first content, YMulti keeps page-source authority local and sends approved human-language segments together with source/target locale, semantic role and limited structural context to `https://ai.yablonsky.io/api`; the complete editable HTML/JavaScript/CSS source stays under local YMulti control. Plain strings and taxonomy suggestions send the selected source text and translation context. Vision review sends one explicitly selected local image, target locale and localization-analysis prompt to the selected Vision model through the User conversation/message API. Vision suggestions remain advisory until an administrator applies and saves them. The User API key and selected workspace ID provide authentication and authority. Automatic text translation uses the workspace Writer route by default; an explicitly selected entitled text model uses the User conversation/message route after a fresh live canary. Local multilingual routing, editing, pagination, migrations, Layout QA and manual translations run independently from the AI service.
 
 Service home: https://ai.yablonsky.io/
