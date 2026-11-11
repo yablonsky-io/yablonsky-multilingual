@@ -1155,3 +1155,10 @@
 .ypm-family-drawer small,.ymulti-language-drawer small,.ymulti-language-picker__popover small{font-size:14px;line-height:1.5}
 .ymulti-language-drawer__row,.ypm-family-row{min-height:44px}
 
+
+/* Migration-only layout: two public sources, compact cards, clear section rhythm. */
+.ypm-admin--migration .ypm-source-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--ypm-space-4);margin-bottom:var(--ypm-space-4)}
+.ypm-admin--migration .ypm-source-card{min-height:178px}
+.ypm-admin--migration .ypm-source-card .ypm-card__copy{margin-bottom:8px}
+.ypm-admin--migration .ypm-source-card .ypm-source-actions{padding-top:10px}
+@media(max-width:900px){.ypm-admin--migration .ypm-source-grid{grid-template-columns:minmax(0,1fr)}.ypm-admin--migration .ypm-source-card{min-height:0}}
