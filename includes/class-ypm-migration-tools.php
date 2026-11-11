@@ -15,6 +15,17 @@ final class MigrationTools {
   private const BATCH = 250;
   private const LEGACY_LOCK_OPT = 'ypm_legacy_group_migration_lock';
 
+  /**
+   * INTERNAL / LEGACY: Fitoterra is a first-party historical source, not a
+   * supported public migration provider. An explicitly configured internal
+   * site can opt in without changing the public WPML/Polylang workflow.
+   * Existing running jobs remain resumable when this flag is disabled.
+   */
+  private static function fitoterra_internal_enabled(): bool {
+    return defined('YMULTI_ENABLE_INTERNAL_FITOTERRA_MIGRATION')
+      && YMULTI_ENABLE_INTERNAL_FITOTERRA_MIGRATION === true;
+  }
+
   public static function init(): void {
     add_action('admin_menu', [__CLASS__, 'register_page'], 40);
     add_action('admin_post_ypm_migration_start', [__CLASS__, 'handle_start']);
@@ -47,8 +58,11 @@ final class MigrationTools {
     if (!is_array($dryruns)) $dryruns = [];
     $job_running = ($job['status'] ?? '') === 'running';
 
-    $source_labels = ['wpml' => 'WPML', 'polylang' => 'Polylang', 'fitoterra' => 'Fitoterra Multilingual'];
-    $detected_count = count(array_filter($detected));
+    $source_labels = ['wpml' => 'WPML', 'polylang' => 'Polylang'];
+    if (self::fitoterra_internal_enabled()) {
+      $source_labels['fitoterra'] = 'Fitoterra Multilingual';
+    }
+    $detected_count = count(array_filter(array_intersect_key($detected, $source_labels)));
     $ready_dryruns = 0;
     foreach (array_keys($source_labels) as $source) {
       if (!empty($dryruns[$source]) && ($dryruns[$source]['signature'] ?? '') === self::source_signature($source)) $ready_dryruns++;
@@ -70,7 +84,10 @@ final class MigrationTools {
     }
 
     echo '<div class="ypm-metrics ypm-metrics--4">';
-    Admin::render_metric(__('Detected sources', 'yablonsky-multilingual'), (string) $detected_count, __('Of 3 supported', 'yablonsky-multilingual'), 'neutral');
+    Admin::render_metric(__('Detected sources', 'yablonsky-multilingual'), (string) $detected_count, sprintf(
+      /* translators: %d: number of enabled migration sources. */
+      __('Of %d supported', 'yablonsky-multilingual'), count($source_labels)
+    ), 'neutral');
     Admin::render_metric(__('Fresh dry runs', 'yablonsky-multilingual'), (string) $ready_dryruns, __('Eligible for import', 'yablonsky-multilingual'), $ready_dryruns > 0 ? 'attention' : 'neutral');
     Admin::render_metric(__('Source data', 'yablonsky-multilingual'), __('Preserved', 'yablonsky-multilingual'), __('Stays enabled until the administrator changes it', 'yablonsky-multilingual'), 'pass');
     Admin::render_metric(__('Current job', 'yablonsky-multilingual'), $job_status, !empty($job['source']) ? strtoupper((string) $job['source']) : __('Migration ready to configure', 'yablonsky-multilingual'), $job_state);
@@ -257,6 +274,9 @@ final class MigrationTools {
     if (!current_user_can('manage_options')) wp_die(esc_html__('Forbidden', 'yablonsky-multilingual'));
     $source = isset($_POST['source']) ? sanitize_key(wp_unslash($_POST['source'])) : '';
     check_admin_referer('ypm_migration_start_' . $source, 'ypm_migration_nonce');
+    if ($source === 'fitoterra' && !self::fitoterra_internal_enabled()) {
+      wp_die(esc_html__('Forbidden', 'yablonsky-multilingual'));
+    }
     if (self::job_is_running()) {
       wp_safe_redirect(admin_url('admin.php?page=ypm-migration&busy=1'));
       exit;
@@ -270,6 +290,9 @@ final class MigrationTools {
     if (!current_user_can('manage_options')) wp_die(esc_html__('Forbidden', 'yablonsky-multilingual'));
     $source = isset($_POST['source']) ? sanitize_key(wp_unslash($_POST['source'])) : '';
     check_admin_referer('ypm_migration_import_' . $source, 'ypm_migration_nonce');
+    if ($source === 'fitoterra' && !self::fitoterra_internal_enabled()) {
+      wp_die(esc_html__('Forbidden', 'yablonsky-multilingual'));
+    }
     if (self::job_is_running()) {
       wp_safe_redirect(admin_url('admin.php?page=ypm-migration&busy=1'));
       exit;
@@ -344,6 +367,7 @@ final class MigrationTools {
   private static function start_job(string $source, string $mode): void {
     $detected = self::detect_sources();
     if (!in_array($source, ['wpml', 'polylang', 'fitoterra'], true) || empty($detected[$source])) return;
+    if ($source === 'fitoterra' && !self::fitoterra_internal_enabled()) return;
     $job = [
       'source' => $source,
       'mode' => $mode,
