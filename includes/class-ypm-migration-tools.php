@@ -266,6 +266,9 @@ final class MigrationTools {
     if (!current_user_can('manage_options')) wp_die(esc_html__('Forbidden', 'yablonsky-multilingual'));
     $source = isset($_POST['source']) ? sanitize_key(wp_unslash($_POST['source'])) : '';
     check_admin_referer('ypm_migration_import_' . $source, 'ypm_migration_nonce');
+    if (!in_array($source, ['wpml', 'polylang'], true)) {
+      wp_die(esc_html__('Forbidden', 'yablonsky-multilingual'));
+    }
     if (self::job_is_running()) {
       wp_safe_redirect(admin_url('admin.php?page=ypm-migration&busy=1'));
       exit;
