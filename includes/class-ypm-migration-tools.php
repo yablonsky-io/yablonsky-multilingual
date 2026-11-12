@@ -47,8 +47,8 @@ final class MigrationTools {
     if (!is_array($dryruns)) $dryruns = [];
     $job_running = ($job['status'] ?? '') === 'running';
 
-    $source_labels = ['wpml' => 'WPML', 'polylang' => 'Polylang', 'fitoterra' => 'Fitoterra Multilingual'];
-    $detected_count = count(array_filter($detected));
+    $source_labels = ['wpml' => 'WPML', 'polylang' => 'Polylang'];
+    $detected_count = count(array_filter(array_intersect_key($detected, $source_labels)));
     $ready_dryruns = 0;
     foreach (array_keys($source_labels) as $source) {
       if (!empty($dryruns[$source]) && ($dryruns[$source]['signature'] ?? '') === self::source_signature($source)) $ready_dryruns++;
@@ -70,7 +70,7 @@ final class MigrationTools {
     }
 
     echo '<div class="ypm-metrics ypm-metrics--4">';
-    Admin::render_metric(__('Detected sources', 'yablonsky-multilingual'), (string) $detected_count, __('Of 3 supported', 'yablonsky-multilingual'), 'neutral');
+    Admin::render_metric(__('Detected sources', 'yablonsky-multilingual'), (string) $detected_count, implode(' · ', array_values($source_labels)), 'neutral');
     Admin::render_metric(__('Fresh dry runs', 'yablonsky-multilingual'), (string) $ready_dryruns, __('Eligible for import', 'yablonsky-multilingual'), $ready_dryruns > 0 ? 'attention' : 'neutral');
     Admin::render_metric(__('Source data', 'yablonsky-multilingual'), __('Preserved', 'yablonsky-multilingual'), __('Stays enabled until the administrator changes it', 'yablonsky-multilingual'), 'pass');
     Admin::render_metric(__('Current job', 'yablonsky-multilingual'), $job_status, !empty($job['source']) ? strtoupper((string) $job['source']) : __('Migration ready to configure', 'yablonsky-multilingual'), $job_state);
@@ -239,17 +239,13 @@ final class MigrationTools {
   public static function detect_sources(): array {
     global $wpdb;
     $wpml_table = $wpdb->prefix . 'icl_translations';
-    $fml_table = $wpdb->prefix . 'fml_post_translations';
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
     $wpml_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpml_table)) === $wpml_table;
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-    $fml_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $fml_table)) === $fml_table;
     $pll = function_exists('pll_get_post_language') && function_exists('pll_get_post_translations');
 
     return [
       'wpml' => $wpml_exists ? ['summary' => __('WPML translation relation table detected.', 'yablonsky-multilingual')] : false,
       'polylang' => $pll ? ['summary' => __('Polylang API detected; posts and terms can be normalized through native API data.', 'yablonsky-multilingual')] : false,
-      'fitoterra' => $fml_exists ? ['summary' => __('Fitoterra translation table detected. Existing relation data can be normalized into YMulti families.', 'yablonsky-multilingual')] : false,
     ];
   }
 
@@ -270,6 +266,9 @@ final class MigrationTools {
     if (!current_user_can('manage_options')) wp_die(esc_html__('Forbidden', 'yablonsky-multilingual'));
     $source = isset($_POST['source']) ? sanitize_key(wp_unslash($_POST['source'])) : '';
     check_admin_referer('ypm_migration_import_' . $source, 'ypm_migration_nonce');
+    if (!in_array($source, ['wpml', 'polylang'], true)) {
+      wp_die(esc_html__('Forbidden', 'yablonsky-multilingual'));
+    }
     if (self::job_is_running()) {
       wp_safe_redirect(admin_url('admin.php?page=ypm-migration&busy=1'));
       exit;
@@ -343,7 +342,7 @@ final class MigrationTools {
 
   private static function start_job(string $source, string $mode): void {
     $detected = self::detect_sources();
-    if (!in_array($source, ['wpml', 'polylang', 'fitoterra'], true) || empty($detected[$source])) return;
+    if (!in_array($source, ['wpml', 'polylang'], true) || empty($detected[$source])) return;
     $job = [
       'source' => $source,
       'mode' => $mode,
@@ -381,7 +380,6 @@ final class MigrationTools {
 
       if ($source === 'wpml') $more = self::process_wpml($job);
       elseif ($source === 'polylang') $more = self::process_polylang($job);
-      elseif ($source === 'fitoterra') $more = self::process_fitoterra($job);
       else $more = false;
 
       $job['updated_at'] = time();
@@ -508,89 +506,6 @@ final class MigrationTools {
   }
 
   /** @param array<string,mixed> $job */
-  private static function process_fitoterra(array &$job): bool {
-    global $wpdb;
-    $phase = (string) ($job['phase'] ?? 'posts');
-
-    if ($phase === 'posts') {
-      $table = $wpdb->prefix . 'fml_post_translations';
-      $cursor = (int) ($job['cursor'] ?? 0);
-      // Fitoterra can contain more than one row per post ID, so use a stable
-      // bounded offset under the source-signature guard instead of an ID cursor.
-      // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin-only bounded migration read.
-      $rows = $wpdb->get_results($wpdb->prepare(
-        'SELECT post_id, lang, group_id FROM ' . esc_sql($table) . ' ORDER BY post_id ASC, lang ASC LIMIT %d OFFSET %d',
-        self::BATCH,
-        $cursor
-      ));
-      if (!$rows) {
-        $job['phase'] = 'orders';
-        $job['cursor'] = 0;
-        return true;
-      }
-      foreach ($rows as $row) {
-        $post_id = (int) ($row->post_id ?? 0);
-        $job['stats']['processed']++;
-        $lang = self::normalize_language((string) ($row->lang ?? ''));
-        $group = sanitize_title('fml-' . (string) ($row->group_id ?? ''));
-        if ($post_id <= 0 || $lang === '' || $group === '') { $job['stats']['skipped']++; continue; }
-        self::apply_post_identity($post_id, $lang, $group, $job);
-      }
-      $job['cursor'] = $cursor + count($rows);
-      return true;
-    }
-
-    if ($phase === 'orders') {
-      $cursor = (int) ($job['cursor'] ?? 0);
-      // Historical Fitoterra order language was stored in post meta. This read
-      // remains bounded and import writes through WooCommerce order CRUD.
-      // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-      $rows = $wpdb->get_results($wpdb->prepare(
-        "SELECT meta_id, post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_id > %d AND meta_key = %s ORDER BY meta_id ASC LIMIT %d",
-        $cursor,
-        '_fml_order_lang',
-        self::BATCH
-      ));
-      if (!$rows) {
-        $job['phase'] = 'preserved';
-        $job['cursor'] = 0;
-        $strings_table = $wpdb->prefix . 'fml_strings';
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-        $exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $strings_table)) === $strings_table;
-        if ($exists) {
-          // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only source evidence.
-          $count = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . esc_sql($strings_table));
-          $job['evidence'][] = sprintf(
-            /* translators: %d: number of preserved Fitoterra source string rows. */
-            __('Fitoterra fml_strings rows preserved in source storage: %d. They are not guessed into a text domain during automatic import.', 'yablonsky-multilingual'),
-            $count
-          );
-        }
-        return false;
-      }
-      foreach ($rows as $row) {
-        $job['cursor'] = max((int) $job['cursor'], (int) ($row->meta_id ?? 0));
-        $job['stats']['processed']++;
-        $lang = self::normalize_language((string) ($row->meta_value ?? ''));
-        if ($lang === '' || !function_exists('wc_get_order')) { $job['stats']['skipped']++; continue; }
-        $order = wc_get_order((int) ($row->post_id ?? 0));
-        if (!$order) { $job['stats']['skipped']++; continue; }
-        $existing = sanitize_text_field((string) $order->get_meta('_ypm_order_language', true));
-        if ($existing !== '' && $existing !== $lang) { $job['stats']['conflict']++; continue; }
-        $job['stats']['ready']++;
-        if (($job['mode'] ?? '') === 'import') {
-          $order->update_meta_data('_ypm_order_language', $lang);
-          if (method_exists($order, 'save_meta_data')) $order->save_meta_data(); else $order->save();
-          $job['stats']['imported']++;
-        }
-      }
-      return true;
-    }
-
-    return false;
-  }
-
-  /** @param array<string,mixed> $job */
   private static function apply_post_identity(int $post_id, string $language, string $group, array &$job): void {
     if (!get_post($post_id) || !Languages::is_active($language)) { $job['stats']['skipped']++; return; }
     $existing_lang = Translations::assigned_post_language($post_id);
@@ -642,12 +557,6 @@ final class MigrationTools {
       // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only source fingerprint.
       $row = $wpdb->get_row('SELECT COUNT(*) AS row_count, MAX(translation_id) AS max_id FROM ' . esc_sql($table));
       return sha1('wpml|' . (int) ($row->row_count ?? 0) . '|' . (int) ($row->max_id ?? 0));
-    }
-    if ($source === 'fitoterra') {
-      $table = $wpdb->prefix . 'fml_post_translations';
-      // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only source fingerprint.
-      $row = $wpdb->get_row('SELECT COUNT(*) AS row_count, MAX(post_id) AS max_id FROM ' . esc_sql($table));
-      return sha1('fitoterra|' . (int) ($row->row_count ?? 0) . '|' . (int) ($row->max_id ?? 0));
     }
     if ($source === 'polylang') {
       // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only source fingerprint.

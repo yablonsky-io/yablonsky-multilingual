@@ -2,6 +2,14 @@
 
 Previous release notes retained from the full development history.
 
+= 2.53.9 =
+* Correct the visual size and alignment of the existing Legacy Translation family lookup without changing migration logic, localized content or stored data.
+
+= 2.53.8 =
+* Restore gettext catalog metadata and compiled MO files across 36 languages without changing translated UI content.
+* Remove unused Fitoterra-only migration code while retaining WPML and Polylang import behavior.
+* Correct spacing and card sizing on the Migration admin page; document optional external FX service.
+
 = 2.53.7 =
 * Localize Autopilot terminology across all 36 catalogs; preserve runtime, database contracts and unrelated translations.
 

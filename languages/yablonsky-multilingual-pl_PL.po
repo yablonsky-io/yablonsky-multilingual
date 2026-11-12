@@ -322,7 +322,7 @@ msgid "1 · Campaign scope"
 msgstr "1 · Zakres kampanii"
 
 #: includes/class-ymulti-site-coverage.php:37
-#, no-python-format, python-format
+#, no-python-format
 msgid "100% complete"
 msgstr "Ukończono w 100%"
 

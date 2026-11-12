@@ -1,0 +1,295 @@
+name: YMulti narrow WordPress.org candidate checks
+
+on:
+  pull_request:
+    paths:
+      - 'includes/class-ypm-migration-tools.php'
+      - 'assets/admin-shell.css'
+      - 'assets/release-2.53.7/admin-shell.css'
+      - 'assets/release-2.53.9/**'
+      - 'assets/release-2.53.8/admin-shell.css'
+      - 'yablonsky-multilingual.php'
+      - 'readme.txt'
+      - 'changelog.txt'
+      - 'languages/**'
+      - '.github/tests/ymulti-all-locale-runtime.php'
+      - '.github/tests/ymulti-admin-user-locale.php'
+      - '.github/workflows/prepublic-ymulti-minimal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php-syntax:
+    name: PHP ${{ matrix.php }} syntax
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.1', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Lint all runtime PHP
+        run: |
+          set -euo pipefail
+          find includes -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          php -l yablonsky-multilingual.php >/dev/null
+          php -l uninstall.php >/dev/null
+          echo "PASS: PHP syntax on ${{ matrix.php }}"
+
+  migration-and-assets:
+    name: Migration scope, CSS parity and JavaScript syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify narrowly authorized migration removal and layout
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          migration=Path('includes/class-ypm-migration-tools.php').read_text(encoding='utf8')
+          if re.search('fitoterra|fml_post_translations|_fml_order_lang|fml_strings|YMULTI_ENABLE_INTERNAL_FITOTERRA_MIGRATION',migration,re.I):
+              raise SystemExit('FAIL: legacy Fitoterra runtime remains')
+          for required in ("'wpml' =>", "'polylang' =>", 'process_wpml', 'process_polylang', "['wpml', 'polylang']"):
+              if required not in migration:
+                  raise SystemExit('FAIL: missing migration requirement '+required)
+          if migration.count("['wpml', 'polylang']")<2:
+              raise SystemExit('FAIL: no server-side source restriction')
+          if "if (!in_array($source, ['wpml', 'polylang'], true))" not in migration:
+              raise SystemExit('FAIL: import does not fail closed before side effects')
+          a=Path('assets/admin-shell.css').read_bytes()
+          b=Path('assets/release-2.53.7/admin-shell.css').read_bytes()
+          if a!=Path('assets/release-2.53.9/admin-shell.css').read_bytes():
+              raise SystemExit('FAIL: active and 2.53.9 CSS differ')
+          next_css=Path('assets/release-2.53.9/admin-shell.css').read_bytes()
+          if a!=next_css:
+              raise SystemExit('FAIL: next-version CSS differs from approved Migration UI')
+          versioned=list(Path('assets/release-2.53.9').glob('*'))
+          if len(versioned)!=14:
+              raise SystemExit('FAIL: next-version runtime assets incomplete')
+          css=a.decode('utf8')
+          required_css=[
+              '.ypm-admin--migration .ypm-source-grid{grid-template-columns:repeat(2,minmax(0,1fr))',
+              'margin-bottom:var(--ypm-space-4)',
+              '.ypm-admin--migration #ymulti-legacy-group{box-sizing:border-box;min-height:42px;height:42px',
+              '.ypm-admin--migration .ypm-source-card{min-height:178px}',
+              '@media(max-width:900px){.ypm-admin--migration .ypm-source-grid{grid-template-columns:minmax(0,1fr)}',
+          ]
+          for needle in required_css:
+              if needle not in css:
+                  raise SystemExit('FAIL: missing layout rule '+needle)
+          print('PASS: no Fitoterra in migration PHP, WPML/Polylang retained, CSS copies identical')
+          PY
+      - name: Check JavaScript syntax
+        run: |
+          set -euo pipefail
+          find assets blocks -type f -name '*.js' -print0 | xargs -0 -n1 node --check >/dev/null
+          echo 'PASS: JavaScript syntax'
+
+  locale-catalog-verification:
+    name: Gettext 36 PO/MO reproducibility and format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install gettext validators
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gettext
+
+      - name: Validate PO source coverage, metadata and compiled MO syntax
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('languages')
+          po_files = sorted(source.glob('yablonsky-multilingual-*.po'))
+          mo_files = sorted(source.glob('yablonsky-multilingual-*.mo'))
+          pot = (source / 'yablonsky-multilingual.pot').read_text(encoding='utf-8')
+          def count_entries(s):
+              return len(re.findall(r'^msgid ', s, flags=re.MULTILINE))
+          expected = count_entries(pot)
+          errors = []
+          warnings = []
+          if len(po_files) != 36 or len(mo_files) != 36:
+              errors.append(f'Expected 36 PO and MO files; found {len(po_files)} PO, {len(mo_files)} MO')
+          po_codes = {p.stem.removeprefix('yablonsky-multilingual-') for p in po_files}
+          mo_codes = {p.stem.removeprefix('yablonsky-multilingual-') for p in mo_files}
+          if po_codes != mo_codes:
+              errors.append(f'PO/MO filename mismatch: {sorted(po_codes ^ mo_codes)}')
+          for po in po_files:
+              data = po.read_text(encoding='utf-8')
+              count = count_entries(data)
+              if count != expected:
+                  errors.append(f'{po.name}: {count} msgid entries; source POT has {expected}')
+              if not data.startswith(('msgid ""', '\nmsgid ""', '#')):
+                  errors.append(f'{po.name}: unexpected catalog preamble')
+              first_msgid = data.find('msgid ')
+              preamble = data[:first_msgid]
+              if re.search(r'(?m)^#,.*\bfuzzy\b', preamble):
+                  errors.append(f'{po.name}: fuzzy header can suppress compiled plural/locale metadata')
+              header = data[first_msgid:].split('\n\n', 1)[0]
+              if not re.search(r'Language: ', header):
+                  errors.append(f'{po.name}: missing Language header')
+              if re.search(r'approval pending|not production approved|independent.*review|editorial draft|linguistic.*pending|WIP|FULL NAME <EMAIL@ADDRESS>', header, re.IGNORECASE):
+                  warnings.append(f'{po.name}: metadata signals editorial review is not yet certified')
+          for msg in errors:
+              print('ERROR:', msg)
+          for msg in warnings:
+              print('REVIEW:', msg)
+          print(f'PO/MO pairs: {len(po_files)}/{len(mo_files)}; POT entries: {expected}; editorial warnings: {len(warnings)}')
+          if errors:
+              raise SystemExit('FAILED: localization catalog structural gate')
+          PY
+          mkdir -p /tmp/ymulti-mo-check
+          failed=0
+          for po in languages/yablonsky-multilingual-*.po; do
+            base="$(basename "$po" .po)"
+            if ! msgfmt --check --check-format --statistics -o "/tmp/ymulti-mo-check/${base}.mo" "$po"; then
+              echo "FAIL: $po did not pass gettext format checks"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            echo "FAILED: $failed locale catalogs have gettext errors"
+            exit 1
+          fi
+          mismatch=0
+          for file in /tmp/ymulti-mo-check/*.mo; do
+            target="languages/$(basename "$file")"
+            if ! cmp -s "$file" "$target"; then
+              echo "FAIL: committed MO differs from compiled PO: $target"
+              mismatch=$((mismatch + 1))
+            fi
+          done
+          if [ "$mismatch" -ne 0 ]; then
+            echo "FAILED: $mismatch MO binaries stale or nonreproducible"
+            exit 1
+          fi
+          echo 'PASS: 36 source PO catalogs compile and match 36 committed MO binaries byte-for-byte'
+
+  wordpress-plugin-check:
+    name: Official WordPress Plugin Check — accepted-source candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage accepted source and license only
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from shutil import copy2
+          import hashlib,json
+          manifest=json.loads(Path('.github/RELEASE_SOURCE_SHA256_2.53.7.json').read_text(encoding='utf8'))
+          expected=manifest['files']
+          if manifest['version']!='2.53.7' or len(expected)!=180:
+              raise SystemExit('FAIL: baseline source inventory')
+          for name,sha in expected.items():
+              src=Path(name)
+              if src.is_absolute() or '..' in src.parts or not src.is_file():
+                  raise SystemExit('FAIL: unsafe/missing source '+name)
+              allowed={'includes/class-ypm-migration-tools.php','assets/admin-shell.css','assets/release-2.53.7/admin-shell.css','yablonsky-multilingual.php','readme.txt','changelog.txt'}
+              if name not in allowed and not name.startswith('languages/'):
+                  if hashlib.sha256(src.read_bytes()).hexdigest()!=sha:
+                      raise SystemExit('FAIL: unrelated accepted runtime changed: '+name)
+              if name.startswith('assets/release-2.53.7/'):
+                  continue  # retired assets remain in Git history, not the 2.53.9 installer
+              dst=Path('.ci-stage/yablonsky-multilingual')/name
+              dst.parent.mkdir(parents=True,exist_ok=True)
+              copy2(src,dst)
+          copy2('LICENSE','.ci-stage/yablonsky-multilingual/LICENSE')
+          for source in sorted(Path('assets/release-2.53.9').glob('*')):
+              if not source.is_file():
+                  raise SystemExit('FAIL: invalid release asset')
+              target=Path('.ci-stage/yablonsky-multilingual')/source
+              target.parent.mkdir(parents=True,exist_ok=True)
+              copy2(source,target)
+          bootstrap=Path('yablonsky-multilingual.php').read_text(encoding='utf8')
+          readme=Path('readme.txt').read_text(encoding='utf8')
+          if "define('YPM_VERSION', '2.53.9')" not in bootstrap or '* Version: 2.53.9' not in bootstrap or 'Stable tag: 2.53.9' not in readme:
+              raise SystemExit('FAIL: inconsistent corrective release version')
+          print('PASS: staged 180 runtime files + LICENSE; retired version assets excluded')
+          PY
+      - name: Official WordPress Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ./.ci-stage/yablonsky-multilingual
+          include-experimental: 'false'
+
+      - name: WordPress runtime — all 36 bundled locales
+        run: |
+          set -euo pipefail
+          cp .github/tests/ymulti-all-locale-runtime.php .ci-stage/yablonsky-multilingual/.ymulti-ci-locales.php
+          if command -v wp-env >/dev/null 2>&1; then
+            wp-env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-locales.php
+          else
+            npx --yes @wordpress/env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-locales.php
+          fi
+          rm -f .ci-stage/yablonsky-multilingual/.ymulti-ci-locales.php
+
+      - name: WordPress admin user locale switching — all 36 locales
+        run: |
+          set -euo pipefail
+          cp .github/tests/ymulti-admin-user-locale.php .ci-stage/yablonsky-multilingual/.ymulti-ci-admin-locale.php
+          if command -v wp-env >/dev/null 2>&1; then
+            wp-env run cli wp --context=admin eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-admin-locale.php
+          else
+            npx --yes @wordpress/env run cli wp --context=admin eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-admin-locale.php
+          fi
+          rm -f .ci-stage/yablonsky-multilingual/.ymulti-ci-admin-locale.php
+
+      - name: Build and verify one installable QA ZIP
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
+          import hashlib, sys
+          root=Path('.ci-stage/yablonsky-multilingual')
+          files=sorted(p for p in root.rglob('*') if p.is_file())
+          if len(files)!=181:
+              sys.exit(f'FAIL: expected 181 release files, got {len(files)}')
+          if any(p.name.startswith('.ymulti-ci-') or 'release-2.53.7' in str(p) or 'release-2.53.8' in str(p) for p in files):
+              sys.exit('FAIL: QA source or retired assets would leak into installer')
+          out=Path('.release')
+          out.mkdir(exist_ok=True)
+          target=out/'yablonsky-multilingual-2.53.9.zip'
+          with ZipFile(target, 'w') as zipped:
+              for src in files:
+                  rel=src.relative_to(root).as_posix()
+                  info=ZipInfo('yablonsky-multilingual/'+rel,(1980,1,1,0,0,0))
+                  info.compress_type=ZIP_DEFLATED
+                  info.external_attr=0o644<<16
+                  zipped.writestr(info,src.read_bytes(),compress_type=ZIP_DEFLATED,compresslevel=9)
+          with ZipFile(target) as zipped:
+              if zipped.testzip() is not None:
+                  sys.exit('FAIL: CRC mismatch in installer')
+              if len(zipped.namelist())!=181:
+                  sys.exit('FAIL: unexpected member count')
+              for src in files:
+                  rel='yablonsky-multilingual/'+src.relative_to(root).as_posix()
+                  if hashlib.sha256(zipped.read(rel)).digest()!=hashlib.sha256(src.read_bytes()).digest():
+                      sys.exit('FAIL: installer content differs from checked source '+rel)
+          size=target.stat().st_size
+          if size>=10000000:
+              sys.exit('FAIL: WordPress.org submission ZIP exceeds 10 MB: '+str(size))
+          digest=hashlib.sha256(target.read_bytes()).hexdigest()
+          (out/'SHA256SUMS_2.53.9.txt').write_text(digest+'  '+target.name+'\n',encoding='utf8')
+          print('PASS: immutable test ZIP, 181 checked members, ZIP size',size,'SHA-256',digest)
+          PY
+      - name: Upload verified 2.53.9 QA installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ymulti-2.53.9-qa-installer
+          path: |
+            .release/yablonsky-multilingual-2.53.9.zip
+            .release/SHA256SUMS_2.53.9.txt
+          if-no-files-found: error
+          retention-days: 14

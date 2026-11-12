@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Yablonsky Multilingual
  * Description: Set up your languages, translate pages and products, and manage your multilingual website in one place.
- * Version: 2.53.7
+ * Version: 2.53.9
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Yablonsky.io
@@ -67,7 +67,7 @@ if (yablonsky_multilingual_legacy_package_active()) {
 }
 
 define('YPM_PLUGIN_FILE', __FILE__);
-define('YPM_VERSION', '2.53.7');
+define('YPM_VERSION', '2.53.9');
 define('YPM_DB_VERSION', 8);
 define('YPM_MIN_PHP', '7.4');
 define('YPM_MIN_WP', '6.0');

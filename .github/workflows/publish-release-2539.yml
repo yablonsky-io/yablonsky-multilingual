@@ -1,0 +1,105 @@
+name: Publish Yablonsky Multilingual 2.53.9
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-release-2539.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-ymulti-2539
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out immutable release source
+        uses: actions/checkout@v4
+
+      - name: Verify accepted QA release and stage identical ZIP
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
+          import hashlib, json, sys, re
+          manifest=json.loads(Path('.github/RELEASE_SOURCE_SHA256_2.53.7.json').read_text(encoding='utf-8'))
+          expected=manifest['files']
+          if manifest.get('version')!='2.53.7' or len(expected)!=180:
+              sys.exit('FAIL: immutable source baseline invalid')
+          allowed={'includes/class-ypm-migration-tools.php','assets/admin-shell.css','assets/release-2.53.7/admin-shell.css','yablonsky-multilingual.php','readme.txt','changelog.txt'}
+          for name,sha in expected.items():
+              src=Path(name)
+              if not src.is_file() or src.is_absolute() or '..' in src.parts:
+                  sys.exit('FAIL: source missing or unsafe '+name)
+              if name not in allowed and not name.startswith('languages/'):
+                  if hashlib.sha256(src.read_bytes()).hexdigest()!=sha:
+                      sys.exit('FAIL: unapproved functional change '+name)
+          bootstrap=Path('yablonsky-multilingual.php').read_text(encoding='utf8')
+          readme=Path('readme.txt').read_text(encoding='utf8')
+          history=Path('changelog.txt').read_text(encoding='utf8')
+          if "* Version: 2.53.9" not in bootstrap or "define('YPM_VERSION', '2.53.9')" not in bootstrap or 'Stable tag: 2.53.9' not in readme or '= 2.53.9 =' not in history:
+              sys.exit('FAIL: release version mismatch')
+          if 'YMULTI_ENABLE_INTERNAL_FITOTERRA_MIGRATION' in Path('includes/class-ypm-migration-tools.php').read_text(encoding='utf8') or 'fitoterra' in Path('includes/class-ypm-migration-tools.php').read_text(encoding='utf8').lower():
+              sys.exit('FAIL: internal importer still present')
+          original=sorted(p for p in Path('assets/release-2.53.9').glob('*') if p.is_file())
+          if len(original)!=14 or Path('assets/admin-shell.css').read_bytes()!=Path('assets/release-2.53.9/admin-shell.css').read_bytes():
+              sys.exit('FAIL: versioned release assets invalid')
+          if not Path('LICENSE').is_file():
+              sys.exit('FAIL: license absent')
+          files={name:Path(name) for name in expected if not name.startswith('assets/release-2.53.7/')}
+          for src in original:
+              files[src.as_posix()]=src
+          files['LICENSE']=Path('LICENSE')
+          if len(files)!=181:
+              sys.exit('FAIL: unexpected package file count '+str(len(files)))
+          if any(name.startswith('.github/') or name.startswith('docs/PUBLIC_') for name in files):
+              sys.exit('FAIL: internal workflow/policy in product ZIP')
+          output=Path('.release')
+          output.mkdir(exist_ok=True)
+          archive=output/'yablonsky-multilingual-2.53.9.zip'
+          with ZipFile(archive,'w') as z:
+              for name,src in sorted(files.items()):
+                  info=ZipInfo('yablonsky-multilingual/'+name,(1980,1,1,0,0,0))
+                  info.compress_type=ZIP_DEFLATED
+                  info.external_attr=0o644<<16
+                  z.writestr(info,src.read_bytes(),compress_type=ZIP_DEFLATED,compresslevel=9)
+          with ZipFile(archive) as z:
+              if z.testzip() or len(z.namelist())!=181:
+                  sys.exit('FAIL: corrupt or incomplete ZIP')
+              for name,src in files.items():
+                  if hashlib.sha256(z.read('yablonsky-multilingual/'+name)).digest()!=hashlib.sha256(src.read_bytes()).digest():
+                      sys.exit('FAIL: ZIP bytes differ from source '+name)
+          digest=hashlib.sha256(archive.read_bytes()).hexdigest()
+          approved='15225cafd5e57452a1265c37a4eb137079553ba95f68f2b024fcc334d8ffe140'
+          if digest!=approved:
+              sys.exit('FAIL: ZIP not identical to user-tested CI build, got '+digest)
+          if archive.stat().st_size>=10000000:
+              sys.exit('FAIL: WordPress.org installer exceeds 10 MB')
+          (output/'SHA256SUMS_2.53.9.txt').write_text(digest+'  '+archive.name+'\n',encoding='utf8')
+          print('PASS: 181-file installer matches tested SHA-256 '+digest)
+          PY
+
+      - name: Publish immutable GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v2.53.9 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo 'FAIL: immutable tag v2.53.9 already exists'
+            exit 1
+          fi
+          gh release create v2.53.9 \
+            '.release/yablonsky-multilingual-2.53.9.zip' \
+            '.release/SHA256SUMS_2.53.9.txt' \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title 'Yablonsky Multilingual 2.53.9' \
+            --notes-file '.github/RELEASE_NOTES_2.53.9.md' \
+            --target "${GITHUB_SHA}" \
+            --latest
+          gh release view v2.53.9 --repo "${GITHUB_REPOSITORY}" --json tagName,isDraft,assets,url \
+            --jq '{tag: .tagName, draft: .isDraft, url: .url, assets: [.assets[].name]}'
