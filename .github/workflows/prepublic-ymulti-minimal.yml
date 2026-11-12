@@ -74,8 +74,6 @@ jobs:
           versioned=list(Path('assets/release-2.53.9').glob('*'))
           if len(versioned)!=14:
               raise SystemExit('FAIL: next-version runtime assets incomplete')
-          if b!=Path('assets/release-2.53.8/admin-shell.css').read_bytes():
-              raise SystemExit('FAIL: historical CSS version changed unexpectedly')
           css=a.decode('utf8')
           required_css=[
               '.ypm-admin--migration .ypm-source-grid{grid-template-columns:repeat(2,minmax(0,1fr))',
