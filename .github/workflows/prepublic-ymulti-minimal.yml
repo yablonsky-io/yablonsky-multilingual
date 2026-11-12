@@ -6,6 +6,8 @@ on:
       - 'includes/class-ypm-migration-tools.php'
       - 'assets/admin-shell.css'
       - 'assets/release-2.53.7/admin-shell.css'
+      - 'languages/**'
+      - '.github/tests/ymulti-all-locale-runtime.php'
       - '.github/workflows/prepublic-ymulti-minimal.yml'
   workflow_dispatch:
 
@@ -98,17 +100,29 @@ jobs:
               src=Path(name)
               if src.is_absolute() or '..' in src.parts or not src.is_file():
                   raise SystemExit('FAIL: unsafe/missing source '+name)
-              if name not in ('includes/class-ypm-migration-tools.php','assets/admin-shell.css','assets/release-2.53.7/admin-shell.css'):
+              allowed={'includes/class-ypm-migration-tools.php','assets/admin-shell.css','assets/release-2.53.7/admin-shell.css'}
+              if name not in allowed and not name.startswith('languages/'):
                   if hashlib.sha256(src.read_bytes()).hexdigest()!=sha:
                       raise SystemExit('FAIL: unrelated accepted runtime changed: '+name)
               dst=Path('.ci-stage/yablonsky-multilingual')/name
               dst.parent.mkdir(parents=True,exist_ok=True)
               copy2(src,dst)
           copy2('LICENSE','.ci-stage/yablonsky-multilingual/LICENSE')
-          print('PASS: staged 180 runtime files with exactly three authorized changes')
+          print('PASS: staged 180 accepted files; changes restricted to Migration, CSS and language catalogs')
           PY
       - name: Official WordPress Plugin Check
         uses: wordpress/plugin-check-action@v1
         with:
           build-dir: ./.ci-stage/yablonsky-multilingual
           include-experimental: 'false'
+
+      - name: WordPress runtime — all 36 bundled locales
+        run: |
+          set -euo pipefail
+          cp .github/tests/ymulti-all-locale-runtime.php .ci-stage/yablonsky-multilingual/.ymulti-ci-locales.php
+          if command -v wp-env >/dev/null 2>&1; then
+            wp-env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-locales.php
+          else
+            npx --yes @wordpress/env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-locales.php
+          fi
+          rm -f .ci-stage/yablonsky-multilingual/.ymulti-ci-locales.php
