@@ -6,7 +6,8 @@ on:
       - 'includes/class-ypm-migration-tools.php'
       - 'assets/admin-shell.css'
       - 'assets/release-2.53.7/admin-shell.css'
-      - 'assets/release-2.53.8/**'
+      - 'assets/release-2.53.9/**'
+      - 'assets/release-2.53.8/admin-shell.css'
       - 'yablonsky-multilingual.php'
       - 'readme.txt'
       - 'changelog.txt'
@@ -67,16 +68,19 @@ jobs:
           b=Path('assets/release-2.53.7/admin-shell.css').read_bytes()
           if a!=b:
               raise SystemExit('FAIL: shipped active and canonical CSS differ')
-          next_css=Path('assets/release-2.53.8/admin-shell.css').read_bytes()
+          next_css=Path('assets/release-2.53.9/admin-shell.css').read_bytes()
           if a!=next_css:
               raise SystemExit('FAIL: next-version CSS differs from approved Migration UI')
-          versioned=list(Path('assets/release-2.53.8').glob('*'))
+          versioned=list(Path('assets/release-2.53.9').glob('*'))
           if len(versioned)!=14:
               raise SystemExit('FAIL: next-version runtime assets incomplete')
+          if b!=Path('assets/release-2.53.8/admin-shell.css').read_bytes():
+              raise SystemExit('FAIL: historical CSS version changed unexpectedly')
           css=a.decode('utf8')
           required_css=[
               '.ypm-admin--migration .ypm-source-grid{grid-template-columns:repeat(2,minmax(0,1fr))',
               'margin-bottom:var(--ypm-space-4)',
+              '.ypm-admin--migration #ymulti-legacy-group{box-sizing:border-box;min-height:42px;height:42px',
               '.ypm-admin--migration .ypm-source-card{min-height:178px}',
               '@media(max-width:900px){.ypm-admin--migration .ypm-source-grid{grid-template-columns:minmax(0,1fr)}',
           ]
@@ -198,12 +202,12 @@ jobs:
                   if hashlib.sha256(src.read_bytes()).hexdigest()!=sha:
                       raise SystemExit('FAIL: unrelated accepted runtime changed: '+name)
               if name.startswith('assets/release-2.53.7/'):
-                  continue  # retired assets remain in Git history, not the 2.53.8 installer
+                  continue  # retired assets remain in Git history, not the 2.53.9 installer
               dst=Path('.ci-stage/yablonsky-multilingual')/name
               dst.parent.mkdir(parents=True,exist_ok=True)
               copy2(src,dst)
           copy2('LICENSE','.ci-stage/yablonsky-multilingual/LICENSE')
-          for source in sorted(Path('assets/release-2.53.8').glob('*')):
+          for source in sorted(Path('assets/release-2.53.9').glob('*')):
               if not source.is_file():
                   raise SystemExit('FAIL: invalid release asset')
               target=Path('.ci-stage/yablonsky-multilingual')/source
@@ -211,7 +215,7 @@ jobs:
               copy2(source,target)
           bootstrap=Path('yablonsky-multilingual.php').read_text(encoding='utf8')
           readme=Path('readme.txt').read_text(encoding='utf8')
-          if "define('YPM_VERSION', '2.53.8')" not in bootstrap or '* Version: 2.53.8' not in bootstrap or 'Stable tag: 2.53.8' not in readme:
+          if "define('YPM_VERSION', '2.53.9')" not in bootstrap or '* Version: 2.53.9' not in bootstrap or 'Stable tag: 2.53.9' not in readme:
               raise SystemExit('FAIL: inconsistent corrective release version')
           print('PASS: staged 180 runtime files + LICENSE; retired version assets excluded')
           PY
@@ -254,11 +258,11 @@ jobs:
           files=sorted(p for p in root.rglob('*') if p.is_file())
           if len(files)!=181:
               sys.exit(f'FAIL: expected 181 release files, got {len(files)}')
-          if any(p.name.startswith('.ymulti-ci-') or 'release-2.53.7' in str(p) for p in files):
+          if any(p.name.startswith('.ymulti-ci-') or 'release-2.53.7' in str(p) or 'release-2.53.8' in str(p) for p in files):
               sys.exit('FAIL: QA source or retired assets would leak into installer')
           out=Path('.release')
           out.mkdir(exist_ok=True)
-          target=out/'yablonsky-multilingual-2.53.8.zip'
+          target=out/'yablonsky-multilingual-2.53.9.zip'
           with ZipFile(target, 'w') as zipped:
               for src in files:
                   rel=src.relative_to(root).as_posix()
@@ -279,15 +283,15 @@ jobs:
           if size>=10000000:
               sys.exit('FAIL: WordPress.org submission ZIP exceeds 10 MB: '+str(size))
           digest=hashlib.sha256(target.read_bytes()).hexdigest()
-          (out/'SHA256SUMS_2.53.8.txt').write_text(digest+'  '+target.name+'\n',encoding='utf8')
+          (out/'SHA256SUMS_2.53.9.txt').write_text(digest+'  '+target.name+'\n',encoding='utf8')
           print('PASS: immutable test ZIP, 181 checked members, ZIP size',size,'SHA-256',digest)
           PY
-      - name: Upload verified 2.53.8 QA installer
+      - name: Upload verified 2.53.9 QA installer
         uses: actions/upload-artifact@v4
         with:
-          name: ymulti-2.53.8-qa-installer
+          name: ymulti-2.53.9-qa-installer
           path: |
-            .release/yablonsky-multilingual-2.53.8.zip
-            .release/SHA256SUMS_2.53.8.txt
+            .release/yablonsky-multilingual-2.53.9.zip
+            .release/SHA256SUMS_2.53.9.txt
           if-no-files-found: error
           retention-days: 14
