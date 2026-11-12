@@ -296,7 +296,7 @@ msgid "1 · Campaign scope"
 msgstr "1 · 任务范围"
 
 #: includes/class-ymulti-site-coverage.php:37
-#, no-python-format, python-format
+#, no-python-format
 msgid "100% complete"
 msgstr "已完成 100%"
 

@@ -1,9 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Yablonsky Multilingual\\nPOT-Creation-Date: 2026-09-24 "
-"20:50+0300\\nMIME-Version: 1.0\\nContent-Type: text/plain; charset=UTF-8"
-"\\nContent-Transfer-Encoding: 8bit\\nX-Domain: yablonsky-multilingual\\n\n"
+"Project-Id-Version: Yablonsky Multilingual 2.53.7\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2026-09-27 00:00+0000\n"
 "PO-Revision-Date: 2026-09-25 10:28+0000\n"
@@ -312,7 +310,7 @@ msgid "1 · Campaign scope"
 msgstr "1 · Kampanjan laajuus"
 
 #: includes/class-ymulti-site-coverage.php:37
-#, no-python-format, python-format
+#, no-python-format
 msgid "100% complete"
 msgstr "100 % valmis"
 
