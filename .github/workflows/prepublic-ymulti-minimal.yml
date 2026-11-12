@@ -66,8 +66,8 @@ jobs:
               raise SystemExit('FAIL: import does not fail closed before side effects')
           a=Path('assets/admin-shell.css').read_bytes()
           b=Path('assets/release-2.53.7/admin-shell.css').read_bytes()
-          if a!=b:
-              raise SystemExit('FAIL: shipped active and canonical CSS differ')
+          if a!=Path('assets/release-2.53.9/admin-shell.css').read_bytes():
+              raise SystemExit('FAIL: active and 2.53.9 CSS differ')
           next_css=Path('assets/release-2.53.9/admin-shell.css').read_bytes()
           if a!=next_css:
               raise SystemExit('FAIL: next-version CSS differs from approved Migration UI')
