@@ -8,6 +8,7 @@ on:
       - 'assets/release-2.53.7/admin-shell.css'
       - 'languages/**'
       - '.github/tests/ymulti-all-locale-runtime.php'
+      - '.github/tests/ymulti-admin-user-locale.php'
       - '.github/workflows/prepublic-ymulti-minimal.yml'
   workflow_dispatch:
 
@@ -208,3 +209,14 @@ jobs:
             npx --yes @wordpress/env run cli wp eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-locales.php
           fi
           rm -f .ci-stage/yablonsky-multilingual/.ymulti-ci-locales.php
+
+      - name: WordPress admin user locale switching — all 36 locales
+        run: |
+          set -euo pipefail
+          cp .github/tests/ymulti-admin-user-locale.php .ci-stage/yablonsky-multilingual/.ymulti-ci-admin-locale.php
+          if command -v wp-env >/dev/null 2>&1; then
+            wp-env run cli wp --context=admin eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-admin-locale.php
+          else
+            npx --yes @wordpress/env run cli wp --context=admin eval-file wp-content/plugins/yablonsky-multilingual/.ymulti-ci-admin-locale.php
+          fi
+          rm -f .ci-stage/yablonsky-multilingual/.ymulti-ci-admin-locale.php
