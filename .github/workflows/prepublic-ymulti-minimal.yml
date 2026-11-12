@@ -6,6 +6,10 @@ on:
       - 'includes/class-ypm-migration-tools.php'
       - 'assets/admin-shell.css'
       - 'assets/release-2.53.7/admin-shell.css'
+      - 'assets/release-2.53.8/**'
+      - 'yablonsky-multilingual.php'
+      - 'readme.txt'
+      - 'changelog.txt'
       - 'languages/**'
       - '.github/tests/ymulti-all-locale-runtime.php'
       - '.github/tests/ymulti-admin-user-locale.php'
@@ -63,6 +67,12 @@ jobs:
           b=Path('assets/release-2.53.7/admin-shell.css').read_bytes()
           if a!=b:
               raise SystemExit('FAIL: shipped active and canonical CSS differ')
+          next_css=Path('assets/release-2.53.8/admin-shell.css').read_bytes()
+          if a!=next_css:
+              raise SystemExit('FAIL: next-version CSS differs from approved Migration UI')
+          versioned=list(Path('assets/release-2.53.8').glob('*'))
+          if len(versioned)!=14:
+              raise SystemExit('FAIL: next-version runtime assets incomplete')
           css=a.decode('utf8')
           required_css=[
               '.ypm-admin--migration .ypm-source-grid{grid-template-columns:repeat(2,minmax(0,1fr))',
@@ -183,7 +193,7 @@ jobs:
               src=Path(name)
               if src.is_absolute() or '..' in src.parts or not src.is_file():
                   raise SystemExit('FAIL: unsafe/missing source '+name)
-              allowed={'includes/class-ypm-migration-tools.php','assets/admin-shell.css','assets/release-2.53.7/admin-shell.css'}
+              allowed={'includes/class-ypm-migration-tools.php','assets/admin-shell.css','assets/release-2.53.7/admin-shell.css','yablonsky-multilingual.php','readme.txt','changelog.txt'}
               if name not in allowed and not name.startswith('languages/'):
                   if hashlib.sha256(src.read_bytes()).hexdigest()!=sha:
                       raise SystemExit('FAIL: unrelated accepted runtime changed: '+name)
@@ -191,7 +201,17 @@ jobs:
               dst.parent.mkdir(parents=True,exist_ok=True)
               copy2(src,dst)
           copy2('LICENSE','.ci-stage/yablonsky-multilingual/LICENSE')
-          print('PASS: staged 180 accepted files; changes restricted to Migration, CSS and language catalogs')
+          for source in sorted(Path('assets/release-2.53.8').glob('*')):
+              if not source.is_file():
+                  raise SystemExit('FAIL: invalid release asset')
+              target=Path('.ci-stage/yablonsky-multilingual')/source
+              target.parent.mkdir(parents=True,exist_ok=True)
+              copy2(source,target)
+          bootstrap=Path('yablonsky-multilingual.php').read_text(encoding='utf8')
+          readme=Path('readme.txt').read_text(encoding='utf8')
+          if "define('YPM_VERSION', '2.53.8')" not in bootstrap or '* Version: 2.53.8' not in bootstrap or 'Stable tag: 2.53.8' not in readme:
+              raise SystemExit('FAIL: inconsistent corrective release version')
+          print('PASS: staged 194 source files + LICENSE with 14 matching 2.53.8 versioned assets')
           PY
       - name: Official WordPress Plugin Check
         uses: wordpress/plugin-check-action@v1
