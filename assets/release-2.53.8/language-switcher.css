@@ -1,0 +1,3 @@
+/* YMulti language switcher: component-scoped accessibility only. */
+.ymulti-language-switcher .ymulti-switcher__select,.ymulti-switcher .ymulti-switcher__select,.ypm-language-switcher .ypm-switcher__select,.ypm-switcher .ypm-switcher__select{min-height:44px;max-width:100%;}
+.ymulti-language-switcher .ymulti-switcher__select:focus-visible,.ymulti-switcher .ymulti-switcher__select:focus-visible,.ypm-language-switcher .ypm-switcher__select:focus-visible,.ypm-switcher .ypm-switcher__select:focus-visible{outline:2px solid currentColor;outline-offset:2px;}
