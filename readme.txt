@@ -4,7 +4,7 @@ Tags: multilingual, hreflang, seo, woocommerce, localization
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.53.8
+Stable tag: 2.53.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -88,6 +88,9 @@ Service privacy: https://ai.yablonsky.io/policies/privacy
 YMulti keeps core multilingual operation and product telemetry local to WordPress. Optional Yablonsky AI features send the content required for the administrator-requested AI action to `https://ai.yablonsky.io/api`. Structured page localization sends approved human-language segments plus source/target language, semantic role and limited context in bounded staged requests while the complete editable HTML/JavaScript/CSS source stays under local YMulti control. Plain strings and taxonomy suggestions send their selected source text and translation context. Vision media review uploads the individual local image an authorized editor chooses to analyze and stores a local advisory result containing visible-text findings, suggested alt/caption, model/cost metadata and review time. Human save actions keep media files and attachment fields under administrator control. Authentication uses the administrator-provided User API key and selected workspace ID. Sodium or OpenSSL protects the stored key when available, and the UI displays only a masked representation after saving. YMulti persists a limited account/workspace capability projection while upstream provider credentials remain with the AI service. Signed Layout QA runs in the site's own frontend preview and stores a local summary (PASS/REVIEW, issue counts, viewport and content fingerprint); detailed DOM evidence stays local. Image-generation routing remains a separate administrator-requested workflow.
 
 == Changelog ==
+
+= 2.53.9 =
+* Align the Legacy Translation family lookup field with the shared admin control sizing, spacing and responsive layout; migration logic remains unchanged.
 
 = 2.53.8 =
 * Restore all 36 bundled WordPress administration locale catalogs; preserve translation wording and the existing localization engine.
