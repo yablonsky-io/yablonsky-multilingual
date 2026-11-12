@@ -33,8 +33,9 @@ try {
         }
         unload_textdomain($domain);
         $translated = __('1 row selected', $domain);
-        if ($translated === '1 row selected' || !is_string($translated) || trim($translated) === '') {
-            $failures[] = "$locale: actual gettext did not translate admin UI";
+        $expected = $mo->translate('1 row selected');
+        if (!is_string($translated) || trim($translated) === '' || $translated !== $expected) {
+            $failures[] = "$locale: actual gettext differs from the selected user-locale catalog";
             continue;
         }
         echo "PASS user-admin locale $locale: gettext and bundled MO" . PHP_EOL;
