@@ -1162,3 +1162,10 @@
 .ypm-admin--migration .ypm-source-card .ypm-card__copy{margin-bottom:8px}
 .ypm-admin--migration .ypm-source-card .ypm-source-actions{padding-top:10px}
 @media(max-width:900px){.ypm-admin--migration .ypm-source-grid{grid-template-columns:minmax(0,1fr)}.ypm-admin--migration .ypm-source-card{min-height:0}}
+
+/* Migration legacy-family lookup: match the shared admin control rhythm. */
+.ypm-admin--migration #ymulti-legacy-group{box-sizing:border-box;min-height:42px;height:42px;line-height:40px;width:min(100%,440px);max-width:100%;padding:0 12px;border:1px solid #8c8f94;border-radius:7px;font-size:14px}
+.ypm-admin--migration #ymulti-legacy-group:focus{border-color:#2271b1;box-shadow:0 0 0 1px #2271b1;outline:2px solid transparent}
+.ypm-admin--migration form.ypm-source-actions:has(#ymulti-legacy-group){align-items:center;gap:10px;padding-top:8px;margin-top:0}
+.ypm-admin--migration form.ypm-source-actions:has(#ymulti-legacy-group)>.button{height:42px;min-height:42px;line-height:40px}
+@media(max-width:520px){.ypm-admin--migration form.ypm-source-actions:has(#ymulti-legacy-group){align-items:stretch;flex-direction:column}.ypm-admin--migration #ymulti-legacy-group{width:100%}}
