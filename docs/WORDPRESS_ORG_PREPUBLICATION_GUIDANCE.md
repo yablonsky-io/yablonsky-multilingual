@@ -1,6 +1,6 @@
 # Yablonsky.io — WordPress.org pre-publication guidance
 
-**Version:** 1.0.0 · **Date:** 2026-11-11 · **Scope:** Yablonsky.io WordPress plugin repositories
+**Version:** 1.1.0 · **Date:** 2026-11-18 · **Scope:** Yablonsky.io WordPress plugin repositories
 
 > **Advisory engineering reference, not an instruction to refactor a product.** This file documents the common concerns seen in the YSEO WordPress.org review on 2026-11-08 and in official WordPress Plugin Directory guidance. Read it while building a feature, at the start of a publication-preparation task, and before a release candidate. Do **not** interpret reading the guidance as authorization to change functional code.
 
@@ -18,7 +18,7 @@
 Source: the WordPress.org Plugins Team's **“Review in Progress: Yablonsky SEO — GEO & AEO”**, received **2026-11-08**. That email was a review of `yablonsky-seo-5.86.1.zip`. The review warns that examples are samples, not necessarily the complete occurrence list, and that parts of the feedback can be automated/AI-assisted. **Check the actual context; do not indiscriminately replace every matching call.**
 
 - **Nonce + capability:** For privileged actions, check request authenticity and user permissions before processing. Check `admin_post_*`, `wp_ajax_*`, REST permissions, data mutations, file operations, and sensitive reads. A nonce is not an authorization check; use an appropriate `current_user_can()` capability and object-level permission where relevant.
-- **Input sanitation / escaping:** Review `$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`, `$_SERVER`, including nested arrays. Unsplash and sanitize to the expected type, validate ranges/allowlists/ownership, use `$wpdb->prepare()` when needed, and escape output according to HTML/attribute/URL/JS context. The YSEO review identified repeated uses of `filter_input(..., FILTER_UNSAFE_RAW)`; **raw collection is not sanitization**. Preserve intentional structured content using fit-for-purpose validation, not destructive blanket text sanitization.
+- **Input sanitation / escaping:** Review `$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`, `$_SERVER`, including nested arrays. Unslash and sanitize to the expected type, validate ranges/allowlists/ownership, use `$wpdb->prepare()` when needed, and escape output according to HTML/attribute/URL/JS context. The YSEO review identified repeated uses of `filter_input(..., FILTER_UNSAFE_RAW)`; **raw collection is not sanitization**. Preserve intentional structured content using fit-for-purpose validation, not destructive blanket text sanitization.
 - **Prefix collision prevention:** Use distinctive product-prefixed functions, globals, constants, hooks, option/transient/meta keys, shortcodes, handles and other registrations; properly namespaced classes alone do not solve all registration/storage collisions. The reviewer advised prefixes of at least four characters.
 - **Public links and admin notices:** No unsolicited public-site credit/backlinks; require an explicit opt-in for public-facing attribution. Keep admin notices relevant, scoped, and dismissible as required. Review the real UI behavior before changing it.
 - **Review scope and evidence:** Apply the pattern to analogous call sites, not merely the sample lines. Identify false positives and ask the reviewer when an interpretation remains unclear, instead of inventing broad functionality changes.
@@ -57,6 +57,22 @@ Source: the WordPress.org Plugins Team's **“Review in Progress: Yablonsky SEO 
 - Avoid unnecessary temporary release ZIPs. Publish one consolidated external candidate only after verified acceptance and consistent naming/version metadata.
 - After an official WordPress.org review, address the whole **proven** set of findings in a cohesive response and reply in the **same existing email thread**; do not submit repeated partial fixes without reason.
 
+### F. WordPress.org community translations (GlotPress)
+- **After directory acceptance and WordPress.org SVN publication:** WordPress.org imports plugin source strings into its community GlotPress project at `https://translate.wordpress.org/projects/wp-plugins/{slug}/`. Plugin authors do not need to apply separately for the basic translation project. No need to treat its absence during an initial plugin review as a pre-publication defect.
+- **Extraction contract:** use the plugin's actual slug as the single text domain, with correctly internationalized PHP strings and script-translation support where applicable. WordPress.org extracts source strings from code; a bundled POT or a GitHub translation repository is not a prerequisite for extraction.
+- **Community moderation:** WordPress.org users can suggest translations. Proposed strings require approval by a locale General Translation Editor (GTE) or authorized Project Translation Editor (PTE); `Waiting` proposals are not delivered as approved language packs. For a first plugin language pack, at least 90% of stable code strings must be approved (`Current`). Requesting PTE status is a separate, optional community process; authors do not automatically control all locales.
+- **Protect existing shipped locales:** WordPress.org can import bundled `.mo` files on initial project import. Approved WordPress.org language packs can take precedence over packaged translations. **Do not remove bundled PO/MO catalogs, change accepted wording, or retranslate locales in a pre-publication compliance pass.** Only consider de-duplicating packages after actual import, approved packs, locale quality and administrator UI behavior have been checked for the specific product; use a separately approved release.
+- **After approval (operational follow-up, not a release gate):** visit the GlotPress project and language-pack status for the actual slug, check import and locale coverage, and coordinate native-speaker review through the relevant Polyglots locale team when useful. Code updates remain GitHub-driven; WordPress.org SVN distributes the plugin; GlotPress manages translations. These three systems have distinct roles.
+- **Boundary:** a project with 35+ bundled translations should not be assumed to have 35+ approved community language packs. Translation adoption and language-pack size optimizations are future distribution decisions, not authorization to alter an accepted plugin while its WordPress.org review is pending.
+
+### G. Component boundary reliability: optional, evidence-led checks
+These are general engineering questions from reviewing WordPress plugin implementation patterns, **not universal WordPress.org policy violations or automatic blockers**. Only review a topic when the component and a grounded failure mode actually exist in the plugin under consideration.
+- **File ownership and cleanup:** Before replacing, unlinking or rewriting a public root-level artifact such as `llms.txt`, robots rules, sitemap files or generated exports, verify whether this plugin owns that specific artifact and preserve an existing file owned by an administrator or another plugin. Exercise create/disable/uninstall flows in an isolated fixture before changing established file behavior.
+- **Missing-option and external-data consent:** For optional AI/content transfer, verify that the behavior when an option is absent matches the accepted consent policy and public disclosure, not merely the option's activation-time value. A change to an accepted opt-in or privacy default requires explicit product/security approval and targeted regression tests.
+- **Remote services under failure:** Where the product already calls AI/translation/market APIs, check representative HTTP timeouts, response-size bounds, error handling, key confidentiality and retry semantics, preserving approved API contracts. Do not introduce an external dependency or reroute an established provider as part of documentation or a WordPress.org-only pass.
+- **Hot-path database and memory work:** Where a component processes large sitemaps, commerce feeds, 404 traffic or queues, look for demonstrable unbounded scans, repeated writes, stale locks and recovery after interrupted jobs. Test on representative volumes before claiming an optimization need; performance concerns alone do not authorize cache, SQL, scheduler or schema changes.
+- **Safety classification:** For any such observation, record the exact source line or isolated reproduction, impact and existing safeguard in the finding template below. Classify as `NEEDS_CONFIRMATION` or `FUTURE_IMPROVEMENT` by default. Upgrade to `REQUIRED_FOR_PUBLICATION` only when applicable official guidance, an actual reviewer requirement, or an independently verified release-blocking security/correctness issue justifies it. **No bulk audits, refactors, automatic tests or release blocks arise from this section.**
+
 ## 4. Minimal finding / decision record
 
 ```text
@@ -85,6 +101,10 @@ Keep development open and human-governed. Guidance should prevent repeat review 
 - WordPress Plugin Check: https://wordpress.org/plugins/plugin-check/
 - WordPress plugin security: https://developer.wordpress.org/plugins/security/
 - WordPress best practices and namespace/prefix guidance: https://developer.wordpress.org/plugins/plugin-basics/best-practices/
+- WordPress.org translation import and language packs: https://make.wordpress.org/meta/handbook/tutorials-guides/translations/
+- WordPress Polyglots guide for plugin/theme authors: https://make.wordpress.org/polyglots/handbook/plugin-theme-authors-guide/
+- WordPress Polyglots translation review and PTE process: https://make.wordpress.org/polyglots/handbook/plugin-theme-authors-guide/pte-request/
+- WordPress plugin internationalization guidance: https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/
 - WordPress.org review case: private YSEO review email dated 2026-11-08. **This guide summarizes lessons; the original reviewer email is not copied into the public repository.**
 
 **Simple rule:** Build correctly the first time. Preserve accepted functionality. Correct only evidenced WordPress.org publication issues, with proportionate tests and clear human approval for behavioral changes.
